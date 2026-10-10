@@ -4,6 +4,11 @@ Run these commands from the repository root after `bun install --frozen-lockfile
 
 ```sh
 bun run playground
+bun run playground quick-start
+bun run playground fields-only
+bun run playground rules-only
+bun run playground combined
+bun run playground automatic
 bun run playground orders
 bun run playground cancelled
 bun run playground batch
@@ -26,3 +31,5 @@ The [tests](playground.test.ts) cover nested generation, custom fields, deep boo
 The playground is repository-only and excluded from the npm package. See the [user guides](../docs/README.md) for more examples, or [Contributing](../CONTRIBUTING.md) to work on the library itself.
 
 The [property-selector recipe](recipes/property-selectors.ts) references the actual [Customer class](models/customer.ts) through callbacks, including nested fields and subtree scopes. These member accesses support autocomplete and IDE rename, without a dotted path string.
+
+Start with [customization choices](customization/README.md) to compare `fields` only, `rules` only, both, and neither. The [small quick-start recipe](recipes/quick-start.ts) mirrors the standalone example at the top of the root README. The [customization tests](customization/customization.test.ts) verify untouched fields and precedence.

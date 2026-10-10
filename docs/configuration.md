@@ -2,7 +2,7 @@
 
 ## Per-run options and kind defaults
 
-Reuse the [Order model](../README.md#quick-start).
+Reuse the [Order model](../README.md#reusable-order-model).
 
 ```ts
 import { resolveSettings, parseSettings, fixtureRun } from '@integration-testing/test-data-generation';

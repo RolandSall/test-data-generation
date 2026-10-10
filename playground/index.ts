@@ -6,8 +6,15 @@ import { runOptions } from './run-options.js';
 import { inheritanceDemo, polymorphismDemo, unknownFieldsDemo } from './inheritance/scenarios.js';
 import { propertyOrders } from './recipes/property-selectors.js';
 import { Customer } from './models/customer.js';
+import { quickStartPeople } from './recipes/quick-start.js';
+import { automaticPeople, peopleUsingBoth, peopleUsingFields, peopleUsingRules } from './customization/fixtures.js';
 
 const demos = {
+  'quick-start': () => quickStartPeople.one(runOptions),
+  'fields-only': () => peopleUsingFields.one(runOptions),
+  'rules-only': () => peopleUsingRules.one(runOptions),
+  combined: () => peopleUsingBoth.one(runOptions),
+  automatic: () => automaticPeople.one(runOptions),
   orders: () => orders.one(runOptions),
   cancelled: () => orders.one({ ...runOptions, case: 'cancelled' }),
   batch: () => orders.many(3, runOptions),

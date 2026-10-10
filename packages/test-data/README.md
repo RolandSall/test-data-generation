@@ -6,6 +6,39 @@
 
 Requires Node.js 22.22+. ESM and CommonJS are supported; integrations are optional. The package is prepared for npm publication. The npm command below applies after the first publication.
 
+## Quick start
+
+```sh
+npm install @integration-testing/test-data-generation
+```
+
+Create a typed Person, customize its name, and generate the remaining properties:
+
+```ts file=quick-start.ts standalone
+import { defineFixture, select, shape } from '@integration-testing/test-data-generation';
+
+const PersonShape = shape.object({
+  name: shape.string(),
+  age: shape.integer({ min: 18, max: 65 }),
+  active: shape.boolean(),
+});
+const selectors = select(PersonShape);
+const people = defineFixture(PersonShape, {
+  rules: [selectors.field(person => person.name).use('Ada')],
+});
+
+const person = people.one({ seed: 42 });
+console.log(person);
+```
+
+Output with seed `42`:
+
+```text
+{ name: 'Ada', age: 30, active: true }
+```
+
+`person` is inferred as `{ name: string; age: number; active: boolean }`. The name is fixed; age and active status generate automatically. This example uses only `rules`; `fields` is optional. Omit the customization to generate every property, or use `people.many(3, { seed: 42 })` for a batch.
+
 ## Find your use case
 
 | I want to… | Start here |
@@ -25,15 +58,12 @@ Requires Node.js 22.22+. ESM and CommonJS are supported; integrations are option
 | Configure defaults, environment settings, or JSON files | [Configuration](https://github.com/RolandSall/test-data-generation/blob/main/docs/configuration.md) |
 | Understand precedence, limits, or errors | [API behavior and troubleshooting](https://github.com/RolandSall/test-data-generation/blob/main/docs/usage.md) |
 | Try runnable examples | [Playground](https://github.com/RolandSall/test-data-generation/blob/main/docs/playground.md) |
+| Compare fields-only, rules-only, both and neither | [Customization playground](https://github.com/RolandSall/test-data-generation/blob/main/playground/customization/README.md) |
 | Organize classes, models and complex fixtures | [Application examples](https://github.com/RolandSall/test-data-generation/blob/main/docs/examples.md) |
 
-## Quick start
+## Reusable Order model
 
-```sh
-npm install @integration-testing/test-data-generation
-```
-
-Save this model as `models.ts`. Detailed guides reuse its exports.
+The examples below use this larger model. Save it as `models.ts` when following the detailed guides.
 
 ```ts file=models.ts
 import { defineFixture, shape, type Infer } from '@integration-testing/test-data-generation';

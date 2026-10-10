@@ -2,7 +2,7 @@
 
 ## Runner-independent sessions
 
-Reuse the [Order model](../README.md#quick-start).
+Reuse the [Order model](../README.md#reusable-order-model).
 
 ```ts
 import { fixtureRun, defineFixture, shape, sequence, mapValue } from '@integration-testing/test-data-generation';

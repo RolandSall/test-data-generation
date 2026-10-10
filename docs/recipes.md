@@ -1,6 +1,6 @@
 # Recipes and customization
 
-These examples reuse the [README's Order model](../README.md#quick-start). Keep this setup when running the snippets together.
+These examples reuse the [README's Order model](../README.md#reusable-order-model). Keep this setup when running the snippets together.
 
 ```ts
 import { defineFixture, shape, generator, boolean, integer, oneOf, uuid, annotate, select } from '@integration-testing/test-data-generation';

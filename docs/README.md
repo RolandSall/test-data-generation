@@ -1,6 +1,6 @@
 # User guides
 
-Start with the [README quick start](../README.md#quick-start). Save its Order model as `models.ts`; guides import that file when needed. Each guide's TypeScript blocks form a complete example in reading order. Runner examples stand alone. File fences name additional files to create.
+Start with the complete [README quick start](../README.md#quick-start). The detailed guides reuse the [Order model](../README.md#reusable-order-model); save that model as `models.ts` when needed. Each guide's TypeScript blocks form a complete example in reading order. Runner examples stand alone. File fences name additional files to create.
 
 | Guide | Questions it answers |
 | --- | --- |

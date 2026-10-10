@@ -1,6 +1,6 @@
 # Object graphs and collections
 
-Examples reuse the [Order model](../README.md#quick-start) and run together.
+Examples reuse the [Order model](../README.md#reusable-order-model) and run together.
 
 ```ts
 import {

@@ -31,7 +31,9 @@ bun run verify
 
 The root README is the source for the npm README. Run `bun run docs:sync` after editing it. The generated copy rewrites documentation links to repository URLs.
 
-Keep package usage in `docs/` and contributor material in `docs/contributing/`. The documentation checker visits both directories, the root README, `CONTRIBUTING.md`, all example READMEs and the playground README. It validates links, compiles TypeScript snippets, executes guide examples and runs the documented Jest/Vitest tests. Temporary files are removed afterward.
+Keep package usage in `docs/` and contributor material in `docs/contributing/`. The documentation checker visits both directories, the root README, `CONTRIBUTING.md`, all example READMEs and all playground READMEs. It validates links, compiles TypeScript snippets, executes guide examples and runs the documented Jest/Vitest tests. Temporary files are removed afterward.
+
+For a self-contained example such as the quick start, mark its fence `ts file=quick-start.ts standalone`. The checker compiles and runs that snippet as a separate module. Ordinary TypeScript blocks in a guide run together in reading order.
 
 User examples should import public package entry points. The [playground guide](../playground.md) describes the runnable demos; its assertions are included in `verify`.
 
