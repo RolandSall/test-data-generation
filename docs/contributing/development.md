@@ -40,3 +40,9 @@ User examples should import public package entry points. The [playground guide](
 ## Package boundaries
 
 The root workspace and `examples/*` packages are private. Only `packages/test-data` is published, with a `files` allowlist of `dist`, `README.md` and `LICENSE` (npm also includes the manifest). Examples and the playground are outside that package and are never imported by library source. The package checker additionally rejects any tarball path containing an `examples` or `playground` directory.
+
+## Optional-peer compatibility checks
+
+Build first, then run `bun run compatibility:check` to test minimum and current pinned peer versions in isolated packed consumers. To run one matrix cell, use `bun scripts/check-peer-compatibility.ts zod minimum`. The script removes temporary consumers afterward and requires npm/network access. CI runs the same five-peer/two-target matrix independently of the main verification job; current versions come from the workspace manifest. Update the [compatibility table](../compatibility.md) with version changes. This check compiles public declarations without skipping dependency checks, exercises the optional adapter, and uses real runners for Jest/Vitest. Core-only installation is checked by `pack:check`.
+
+The [feedback implementation review](feedback-review.md) records the original gaps, changes, compatibility and focused regression coverage.

@@ -67,6 +67,8 @@ Provider registries match shape kind or metadata and receive the same execution 
 
 `resolveSettings({ defaults, environment, overrides })` merges explicit layers. Passing `process.env` opts into `TEST_DATA_*` settings; it is never read implicitly by core generation. `/node` supplies `readSettingsFile()` for JSON configuration; `parseSettings()` also accepts a JSON string. Unknown settings fail. Kind defaults such as `defaults: { string: { minLength: 4, maxLength: 12 }, array: { minSize: 1, maxSize: 3 } }` apply across a graph; explicit descriptor constraints take precedence. Patterns in JSON use regex source strings and bigint bounds use decimal strings.
 
+See the [compatibility matrix and replay contract](compatibility.md) for tested peer versions, stable replay inputs, and exact uniqueness/session scopes.
+
 Standalone `one()` resets RNG/counters/cursors; `many()` and `stream()` advance one execution context. `fixtureRun()` advances state across several recipes. `result()` records seed and clock. Supply a fixed `now` for relative-date replay; external source contents, recipes and generator versions must remain unchanged. Streams are unbounded: use finite iteration or stop explicitly.
 
 A session owns its seed, clock, budgets and kind defaults. Set these on `fixtureRun()`; individual `make()` calls accept fields, cases, strictness and schema checking. Standalone calls merge recipe settings, selected case settings, then call settings.

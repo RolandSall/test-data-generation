@@ -231,6 +231,8 @@ The [inheritance playground](playground/inheritance/README.md) includes real `Do
 | `/vitest` | Isolated `data` test sessions | Vitest 4.1+ within v4; ESM |
 | `/jest` | Typed `given()` arguments | Jest 30 and `@jest/globals` |
 
+See the [compatibility matrix](docs/compatibility.md) for minimum and current peer versions verified in CI.
+
 JSON Schema and ORM-neutral column adapters are exported from the core. Only install peers for the integrations you use. [Models](docs/models.md) and [testing](docs/testing.md) provide complete examples. Generated data can be passed to Testcontainers/data-isolation tests through normal test code; database inserts and transactions remain application-owned operations.
 
 ## Replay and validation
@@ -240,6 +242,6 @@ const result = scenarios.result({ seed: 42, now: '2026-01-01T00:00:00Z' });
 const reproduced = scenarios.one({ seed: result.seed, now: result.now });
 ```
 
-Keep the seed, clock, recipe, options, source rows, and library version stable for replay. `one()` resets counters/cursors; `many()`, `stream()`, and `fixtureRun()` advance them. Explicit overrides can create negative fixtures; `check: 'schema'` validates the completed graph. Strict unmatched rules and impossible constraints fail with useful errors. See [execution semantics](docs/usage.md).
+Keep the seed, clock, recipe, options, generation order, source contents/order, and package/dependency versions stable for replay. Custom generators and schema callbacks must use controlled state. Independent executions do not share library-managed state or uniqueness domains; no identical-output guarantee applies across package versions. See [replay and uniqueness scope](docs/compatibility.md). `one()` resets counters/cursors; `many()`, `stream()`, and `fixtureRun()` advance them. Explicit overrides can create negative fixtures; `check: 'schema'` validates the completed graph. Strict unmatched rules and impossible constraints fail with useful errors. See [execution semantics](docs/usage.md).
 
 Read the [user guides](docs/README.md) for complete examples or [features and limitations](docs/capabilities.md) for a supported-feature overview. MIT licensed.

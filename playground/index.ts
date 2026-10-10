@@ -15,7 +15,10 @@ import { modesDemo } from './schema-policies/modes.js';
 
 import { selectiveDemo } from './schema-policies/selective.js';
 
+import { replayDemo } from './schema-policies/replay.js';
+
 const demos = {
+  replay: replayDemo,
   selective: selectiveDemo,
   'schema-modes': modesDemo,
   defaults: defaultsDemo,

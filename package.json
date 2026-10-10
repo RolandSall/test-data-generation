@@ -16,6 +16,7 @@
     "playground": "bun run build && bun playground/index.ts",
     "playground:test": "bun run build && tsc --noEmit -p playground/tsconfig.json && vitest run --config playground/vitest.config.ts",
     "pack:check": "bun scripts/verify-package.ts",
+    "compatibility:check": "bun scripts/check-peer-compatibility.ts",
     "docs:sync": "bun scripts/sync-readme.ts",
     "docs:check": "bun scripts/sync-readme.ts --check && bun scripts/check-docs.ts",
     "release:check": "bun scripts/verify-release.ts",

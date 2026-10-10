@@ -12,6 +12,7 @@ Start with the complete [README quick start](../README.md#quick-start). The deta
 | [Testing](testing.md) | Vitest/Jest setup, seed/clock replay, using generated data with database tests? |
 | [Configuration](configuration.md) | Kind defaults, settings precedence, environment variables, JSON files? |
 | [API behavior and troubleshooting](usage.md) | Exact behavior, limits, errors and troubleshooting? |
+| [Compatibility and replay](compatibility.md) | Which peer versions are tested? What makes replay deterministic? Where does uniqueness apply? |
 | [Features and limitations](capabilities.md) | Which use cases and integrations are supported? |
 | [Playground](playground.md) | How do I run and change the examples locally? |
 | [Application examples](examples.md) | How do I organize classes, separate interfaces and complex fixtures? |
