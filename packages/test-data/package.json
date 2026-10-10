@@ -1,0 +1,30 @@
+{
+  "name": "@integration-testing/test-data-generation",
+  "version": "0.1.0",
+  "description": "Deterministic TypeScript object graphs, typed fixture recipes, constraints and coherent data feeds",
+  "author": "Roland Salloum",
+  "license": "MIT", "type": "module", "sideEffects": false,
+  "engines": { "node": ">=22.22" },
+  "publishConfig": { "access": "public" },
+  "repository": { "type": "git", "url": "git+https://github.com/RolandSall/test-data-generation.git", "directory": "packages/test-data" },
+  "homepage": "https://github.com/RolandSall/test-data-generation#readme",
+  "bugs": { "url": "https://github.com/RolandSall/test-data-generation/issues" },
+  "keywords": ["integration-testing", "fixtures", "test-data", "typescript", "seed", "zod", "vitest", "jest"],
+  "main": "./dist/index.cjs", "module": "./dist/index.js", "types": "./dist/types/esm/index.d.ts",
+  "files": ["dist", "README.md", "LICENSE"],
+  "exports": {
+    ".": { "import": { "types": "./dist/types/esm/index.d.ts", "default": "./dist/index.js" }, "require": { "types": "./dist/types/cjs/index.d.ts", "default": "./dist/index.cjs" } },
+    "./zod": { "import": { "types": "./dist/types/esm/adapters/zod.d.ts", "default": "./dist/adapters/zod.js" }, "require": { "types": "./dist/types/cjs/adapters/zod.d.ts", "default": "./dist/adapters/zod.cjs" } },
+    "./typescript": { "import": { "types": "./dist/types/esm/adapters/typescript.d.ts", "default": "./dist/adapters/typescript.js" }, "require": { "types": "./dist/types/cjs/adapters/typescript.d.ts", "default": "./dist/adapters/typescript.cjs" } },
+    "./protobuf": { "import": { "types": "./dist/types/esm/adapters/protobuf.d.ts", "default": "./dist/adapters/protobuf.js" }, "require": { "types": "./dist/types/cjs/adapters/protobuf.d.ts", "default": "./dist/adapters/protobuf.cjs" } },
+    "./node": { "import": { "types": "./dist/types/esm/adapters/node.d.ts", "default": "./dist/adapters/node.js" }, "require": { "types": "./dist/types/cjs/adapters/node.d.ts", "default": "./dist/adapters/node.cjs" } },
+    "./vitest": { "import": { "types": "./dist/types/esm/adapters/vitest.d.ts", "default": "./dist/adapters/vitest.js" } },
+    "./jest": { "import": { "types": "./dist/types/esm/adapters/jest.d.ts", "default": "./dist/adapters/jest.js" }, "require": { "types": "./dist/types/cjs/adapters/jest.d.ts", "default": "./dist/adapters/jest.cjs" } }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts src/adapters/zod.ts src/adapters/typescript.ts src/adapters/protobuf.ts src/adapters/node.ts src/adapters/vitest.ts src/adapters/jest.ts --format esm,cjs --clean --splitting --external zod --external typescript --external protobufjs --external vitest --external @jest/globals && tsc -p tsconfig.build.json && bun ../../scripts/prepare-dual-types.ts"
+  },
+  "dependencies": { "randexp": "0.5.3" },
+  "peerDependencies": { "zod": ">=4.6 <5", "typescript": ">=5.9 <8", "protobufjs": ">=8.8 <9", "vitest": ">=4.1 <5", "@jest/globals": ">=30.1 <31" },
+  "peerDependenciesMeta": { "zod": { "optional": true }, "typescript": { "optional": true }, "protobufjs": { "optional": true }, "vitest": { "optional": true }, "@jest/globals": { "optional": true } }
+}

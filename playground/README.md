@@ -1,0 +1,22 @@
+# Library playground
+
+Run these commands from the repository root after `bun install --frozen-lockfile`:
+
+```sh
+bun run playground
+bun run playground orders
+bun run playground cancelled
+bun run playground batch
+bun run playground feeds
+bun run playground sessions
+bun run playground zod
+bun run playground:test
+```
+
+`playground` builds the package and prints all demos, or the selected demo. `playground:test` builds it, checks the playground's TypeScript, and runs behavioral assertions. Both import the public package name and its Node/Zod entry points, resolving the local workspace package's built output. No source aliases or private engine imports are used.
+
+Edit [the Order model](models/order.ts), [the order recipe](recipes/orders.ts), [the CSV data](data/contacts.csv), or [the Zod schema](recipes/accounts.ts) and rerun. Output uses a fixed seed and clock from [run-options.ts](run-options.ts).
+
+The [tests](playground.test.ts) cover nested generation, custom fields, deep boolean rules, override precedence, derived values, scenarios, coherent feeds, sessions, schema validation and impossible collection sizes.
+
+The playground is repository-only and excluded from the npm package. See the [user guides](../docs/README.md) for more examples, or [Contributing](../CONTRIBUTING.md) to work on the library itself.

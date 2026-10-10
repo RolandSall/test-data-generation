@@ -1,0 +1,10 @@
+{
+  "name": "@integration-testing/examples-orders",
+  "private": true,
+  "type": "module",
+  "exports": "./index.ts",
+  "dependencies": {
+    "@integration-testing/test-data-generation": "workspace:*",
+    "@integration-testing/examples-people": "workspace:*"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "name": "@integration-testing/examples-people",
+  "private": true,
+  "type": "module",
+  "exports": "./index.ts",
+  "dependencies": { "@integration-testing/test-data-generation": "workspace:*" }
+}
