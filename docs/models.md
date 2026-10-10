@@ -80,6 +80,38 @@ if (!(invoice instanceof Invoice)) throw new Error('Expected a real instance');
 
 For initialized fields and registered setters, use [class factories](graphs.md#class-factories-and-setters). Compiler extraction alone produces a plain object. Passing a bare constructor does not infer its declared property types.
 
+## Inheritance and polymorphism
+
+`extends` gives a class runtime inheritance. `implements` checks that a class satisfies a TypeScript contract; it does not create fields, constructors or a prototype relationship. The generator needs runtime shapes for inherited and concrete fields, plus a factory to construct real instances.
+
+```ts
+abstract class Animal {
+  constructor(readonly name: string, readonly active: boolean) {}
+  abstract speak(): string;
+}
+class Dog extends Animal {
+  constructor(name: string, active: boolean, readonly trained: boolean) { super(name, active); }
+  override speak(): string { return 'Woof!'; }
+}
+class Cat extends Animal {
+  override speak(): string { return 'Meow!'; }
+}
+const animalFields = { name: shape.string(), active: shape.boolean() };
+const DogInput = shape.object({ ...animalFields, trained: shape.boolean() });
+const DogShape = shape.transform(DogInput, data => new Dog(data.name, data.active, data.trained));
+const CatShape = shape.transform(shape.object(animalFields), data => new Cat(data.name, data.active));
+const animals = defineFixture(shape.array(shape.union([DogShape, CatShape])));
+const pets = animals.one({ seed: 42 });
+for (const pet of pets) {
+  if (!(pet instanceof Animal)) throw new Error('Expected inherited prototype');
+  pet.speak(); // Dispatches to the selected subclass implementation.
+}
+```
+
+The union samples the concrete shapes you register; it does not discover subclasses or construct an abstract class. A concrete shape forces that subtype. Constructors and `super()` run normally, including your invariant checks. Compiler extraction includes inherited data fields but still generates plain objects; declarations with methods require an explicit class factory or provider.
+
+The [inheritance playground](../playground/inheritance/README.md) demonstrates an implemented contract, inherited fields/methods, overridden behavior, both subtypes in a nested collection, a forced subtype, typed selectors and missing-field errors. Each class and exported interface has its own file.
+
 ## Zod
 
 ```sh

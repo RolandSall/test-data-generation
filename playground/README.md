@@ -10,6 +10,9 @@ bun run playground batch
 bun run playground feeds
 bun run playground sessions
 bun run playground zod
+bun run playground inheritance
+bun run playground polymorphism
+bun run playground unknown-fields
 bun run playground:test
 ```
 
@@ -17,6 +20,6 @@ bun run playground:test
 
 Edit [the Order model](models/order.ts), [the order recipe](recipes/orders.ts), [the CSV data](data/contacts.csv), or [the Zod schema](recipes/accounts.ts) and rerun. Output uses a fixed seed and clock from [run-options.ts](run-options.ts).
 
-The [tests](playground.test.ts) cover nested generation, custom fields, deep boolean rules, override precedence, derived values, scenarios, coherent feeds, sessions, schema validation and impossible collection sizes.
+The [tests](playground.test.ts) cover nested generation, custom fields, deep boolean rules, override precedence, derived values, scenarios, coherent feeds, sessions, schema validation and impossible collection sizes. The [inheritance examples](inheritance/README.md) add real subclasses, an implemented interface, polymorphic nested collections, typed selectors and missing-field errors, with [dedicated tests](inheritance/inheritance.test.ts).
 
 The playground is repository-only and excluded from the npm package. See the [user guides](../docs/README.md) for more examples, or [Contributing](../CONTRIBUTING.md) to work on the library itself.

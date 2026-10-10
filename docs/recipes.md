@@ -3,7 +3,7 @@
 These examples reuse the [README's Order model](../README.md#quick-start). Keep this setup when running the snippets together.
 
 ```ts
-import { defineFixture, shape, generator, boolean, integer, oneOf, uuid, annotate } from '@integration-testing/test-data-generation';
+import { defineFixture, shape, generator, boolean, integer, oneOf, uuid, annotate, select } from '@integration-testing/test-data-generation';
 import { OrderShape, orders } from './models.js';
 ```
 
@@ -20,6 +20,32 @@ const customOrder = custom.one({ seed: 42 });
 ```
 
 `fields` accepts literal values, generators, nested field trees, and nested recipes. A property tree partially configures an object: country, preferences and items still generate. Unknown fields and mismatched instruction types fail type checking. Use `value(object)` for complete replacement; see [ownership](graphs.md#ownership-and-existing-values).
+
+## Typed selectors
+
+Bind selectors to a runtime shape. Field names, nested paths, replacement values and generator outputs are checked by TypeScript:
+
+```ts
+const orderFields = select(OrderShape);
+const selectedOrders = orders.extend({ rules: [
+  orderFields.field('customer.address.city').use('Paris'),
+  orderFields.field('total').use(integer({ min: 100, max: 500 })),
+  orderFields.all('boolean', { under: 'customer.preferences' }).use(true),
+] });
+const selectedOrder = selectedOrders.one({ seed: 42 });
+```
+
+`field('total').use('wrong')`, `field('customer.typo')`, and `all('boolean').use(123)` are compile errors. Scope paths passed to `under` are checked too. `all()` supports string, number, integer, bigint, boolean, date, bytes and decimal runtime kinds. It includes matching descendants inside collections. For unions, `field()` exposes fields common to all variants; configure variant-specific fields in a concrete subtype recipe.
+
+Selectors produce ordinary rules with the same precedence and strict matching. Use `all('boolean', { optional: true })` when a union variant might have no boolean fields. `use()` supplies a complete value, generator, operation or fixture; use `fields` for partial nested overrides. Field paths stop at collections and dates and cover five object levels. Keep raw rules for wildcards, indexes, metadata and predicates.
+
+Paths are also checked against shape metadata immediately, including in JavaScript or after an unsafe cast. Constructors' methods are excluded from field paths. An initialized property or getter absent from the runtime shape cannot be selected. Select constructor input shapes when a transformation changes field names or value types; selectors cannot infer an arbitrary transformation's internal mapping.
+
+## Existing and unknown fields
+
+An existing declared field accepts an override and takes precedence over rules. Unknown `fields` keys fail TypeScript checking; untyped inputs fail during generation with `GenerationError` code `CONFIGURATION`. No extra property is silently added.
+
+A typed selector rejects an unknown path at selection time. A raw string rule pointing to a nonexistent path raises `UNUSED_RULE` after generation in strict mode. `optional: true` or `strict: false` permits unmatched raw rules; it still does not create the missing property. See the runnable [unknown-field demo](../playground/inheritance/scenarios.ts).
 
 ## Write a custom generator
 

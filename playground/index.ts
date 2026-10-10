@@ -3,6 +3,7 @@ import { orders } from './recipes/orders.js';
 import { contactsFromCsv } from './recipes/contacts.js';
 import { accounts } from './recipes/accounts.js';
 import { runOptions } from './run-options.js';
+import { inheritanceDemo, polymorphismDemo, unknownFieldsDemo } from './inheritance/scenarios.js';
 
 const demos = {
   orders: () => orders.one(runOptions),
@@ -15,6 +16,9 @@ const demos = {
     return [run.make(tickets), run.make(tickets), run.make(tickets)];
   },
   zod: () => accounts.one(runOptions),
+  inheritance: inheritanceDemo,
+  polymorphism: polymorphismDemo,
+  'unknown-fields': unknownFieldsDemo,
 };
 
 const selected = process.argv[2];

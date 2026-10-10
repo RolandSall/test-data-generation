@@ -6,6 +6,9 @@ export { generator, value, shared, fresh, populate, omit, blank, reference } fro
 export type { Generator, GeneratorContext } from './core/instructions/generator.js';
 export type { Fields } from './core/types/field-overrides.js';
 export type { Paths, AtPath } from './core/types/property-paths.js';
+export { select } from './core/selection/select.js';
+export type { Selectors } from './core/selection/selectors.js';
+export type { Selection } from './core/selection/selection.js';
 export type { Rule, Match, Completion } from './core/types/matching.js';
 export type { Derived } from './core/types/derived-fields.js';
 export { Random } from './core/random.js';

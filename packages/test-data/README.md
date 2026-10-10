@@ -13,6 +13,8 @@ Requires Node.js 22.22+. ESM and CommonJS are supported; integrations are option
 | Create an object or batch | [Quick start](#quick-start) |
 | Use an existing interface, class, or Zod schema | [Models and adapters](https://github.com/RolandSall/test-data-generation/blob/main/docs/models.md) |
 | Customize a field or nested field | [Field overrides](https://github.com/RolandSall/test-data-generation/blob/main/docs/recipes.md#customize-individual-and-nested-fields) |
+| Select fields and scalar types with compiler checks | [Typed selectors](https://github.com/RolandSall/test-data-generation/blob/main/docs/recipes.md#typed-selectors) |
+| Generate inherited classes and polymorphic collections | [Inheritance](https://github.com/RolandSall/test-data-generation/blob/main/docs/models.md#inheritance-and-polymorphism) |
 | Target every boolean under an object | [Type rules](https://github.com/RolandSall/test-data-generation/blob/main/docs/recipes.md#match-types-throughout-a-subtree) |
 | Derive values and define reusable scenarios | [Recipes](https://github.com/RolandSall/test-data-generation/blob/main/docs/recipes.md) |
 | Control collections, references, ownership, or existing objects | [Object graphs](https://github.com/RolandSall/test-data-generation/blob/main/docs/graphs.md) |
@@ -89,6 +91,22 @@ const customized = customOrders.one({ seed: 42 });
 
 Unspecified fields continue to generate, including the country, preferences, and items. Overrides are checked against the output type. Use the provided RNG for replayable custom generators.
 
+## Select fields with type checking
+
+```ts
+import { select } from '@integration-testing/test-data-generation';
+
+const orderFields = select(OrderShape);
+const selectedOrders = orders.extend({ rules: [
+  orderFields.field('customer.name').use('Ada'),
+  orderFields.field('total').use(integer({ min: 100, max: 500 })),
+  orderFields.all('boolean', { under: 'customer.preferences' }).use(true),
+] });
+const selectedOrder = selectedOrders.one({ seed: 42 });
+```
+
+Unknown paths and incompatible values/generators fail TypeScript checking. Paths also get checked against the runtime shape. Read [typed selectors and field errors](https://github.com/RolandSall/test-data-generation/blob/main/docs/recipes.md#typed-selectors) for details.
+
 ## Match types throughout a nested object
 
 ```ts
@@ -145,6 +163,8 @@ bun run examples:test
 ```
 
 Examples are excluded from the npm package.
+
+The [inheritance playground](https://github.com/RolandSall/test-data-generation/blob/main/playground/inheritance/README.md) includes real `Dog`/`Cat` subclasses, an implemented contract, polymorphic nested collections, typed selectors and unknown-field errors. Run `bun run playground inheritance` or `bun run playground polymorphism`.
 
 ## Optional integrations
 
