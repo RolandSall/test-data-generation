@@ -13,6 +13,12 @@ bun run verify
 
 `verify` runs the dependency audit, type checking, lint, library coverage, example-package tests, playground tests, documentation checks and packed-consumer checks. The package checks install temporary npm consumers and require network access. See [scripts and verification](docs/contributing/development.md) for focused commands.
 
+## Changes to main
+
+Open a pull request for changes to `main`. All files are owned by `@RolandSall`, whose approval is required. New reviewable commits dismiss existing approvals.
+
+Only the `RolandSall` account is allowed to bypass the main ruleset, including direct pushes and merging its own pull requests without another reviewer.
+
 ## Contributor guides
 
 | Guide | Purpose |
