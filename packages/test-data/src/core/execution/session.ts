@@ -39,6 +39,9 @@ export class GenerationSession {
         throw new GenerationError('CONFIGURATION', 'Invalid null/optional probability', '$', this.seed);
       }
     }
+    if (options.schemaDefaults !== undefined && !['generate', 'preserve'].includes(options.schemaDefaults)) {
+      throw new GenerationError('CONFIGURATION', 'Invalid schemaDefaults', '$', this.seed);
+    }
   }
 
   context(path: string, index: number, root: unknown): GeneratorContext {

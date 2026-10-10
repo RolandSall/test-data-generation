@@ -62,7 +62,9 @@ export function fromZod<S extends core.$ZodType>(source: S): Shape<core.output<S
       case 'lazy': output = shape.lazy(() => visit(definition.getter())); break;
       case 'optional': output = shape.optional(visit(definition.innerType)); break;
       case 'nullable': output = shape.nullable(visit(definition.innerType)); break;
-      case 'default': case 'prefault': case 'catch': case 'nonoptional': output = visit(definition.innerType); break;
+      case 'default': case 'prefault':
+        output = Object.freeze({ ...visit(definition.innerType), defaultFactory: () => core.parse(source, undefined) }); break;
+      case 'catch': case 'nonoptional': output = visit(definition.innerType); break;
       case 'readonly': output = shape.transform(visit(definition.innerType), value => typeof value === 'object' && value !== null ? Object.freeze(value) : value); break;
       case 'intersection': {
         const left = visit(definition.left), right = visit(definition.right);

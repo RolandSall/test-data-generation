@@ -18,6 +18,7 @@ export interface Shape<T = unknown> {
   readonly decode?: (value: unknown) => unknown;
   readonly transform?: (value: unknown) => unknown;
   readonly defaultValue?: unknown;
+  readonly defaultFactory?: () => unknown;
   readonly metadata?: Readonly<Record<string, unknown>>;
   readonly __type?: T;
 }

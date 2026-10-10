@@ -40,6 +40,8 @@ export function parseSettings(source: string): SettingsOptions {
       if (typeof value !== 'string' || !Number.isFinite(new Date(value).getTime())) throw new GenerationError('CONFIGURATION', 'Invalid now');
     } else if (key === 'strict') {
       if (typeof value !== 'boolean') throw new GenerationError('CONFIGURATION', 'Invalid strict');
+    } else if (key === 'schemaDefaults') {
+      if (!['generate', 'preserve'].includes(String(value))) throw new GenerationError('CONFIGURATION', 'Invalid schemaDefaults');
     } else if (key === 'check' || key === 'cycle') {
       if (!(key === 'check' ? ['none', 'schema'] : ['omit', 'null', 'reference', 'error']).includes(String(value))) throw new GenerationError('CONFIGURATION', `Invalid ${key}`);
     } else if (key === 'defaults') {

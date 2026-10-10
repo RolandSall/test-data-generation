@@ -1,7 +1,7 @@
 import { GenerationError } from '../error.js';
 import { isFixture } from '../fixture-identity.js';
 import { clone, isPlain } from '../path.js';
-import { instruction, isInstruction, type GeneratorContext, type Rule } from '../instructions.js';
+import { instruction, isInstruction, value, type GeneratorContext, type Rule } from '../instructions.js';
 import { scalarIssues } from '../validation.js';
 import { buildObject } from './objects.js';
 import { buildCollection } from './collections.js';
@@ -30,6 +30,13 @@ export class GraphTraversal implements NodeTraversal {
       const nested = use.resolve();
       registry.register(nested, path);
       return this.visit({ ...location, node: use.shape, input: nested.fields, existing, provided, config: nested, skipUse: true });
+    }
+
+    const missing = !provided || existing === undefined || (existing === null && this.state.mode === 'nullish');
+    if (use === undefined && (!isPlain(input) || Object.keys(input).length === 0) && missing && this.state.mode !== 'blank' && this.state.mode !== 'rules' &&
+      session.options.schemaDefaults === 'preserve' && !registry.provider(location)) {
+      if (node.defaultFactory) use = value(node.defaultFactory());
+      else if (Object.hasOwn(node, 'defaultValue')) use = value(node.defaultValue);
     }
 
     if (isInstruction(use)) {

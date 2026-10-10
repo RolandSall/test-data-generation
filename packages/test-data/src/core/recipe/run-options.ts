@@ -16,6 +16,7 @@ export interface RunOptions<Model = unknown> {
   cycle?: 'omit' | 'null' | 'reference' | 'error';
   nullProbability?: number;
   optionalProbability?: number;
+  schemaDefaults?: 'generate' | 'preserve';
   trace?: (event: TraceEvent) => void;
   defaults?: Partial<Record<Kind, Constraints>>;
 }

@@ -33,3 +33,5 @@ The playground is repository-only and excluded from the npm package. See the [us
 The [property-selector recipe](recipes/property-selectors.ts) references the actual [Customer class](models/customer.ts) through callbacks, including nested fields and subtree scopes. These member accesses support autocomplete and IDE rename, without a dotted path string.
 
 Start with [customization choices](customization/README.md) to compare `fields` only, `rules` only, both, and neither. The [small quick-start recipe](recipes/quick-start.ts) mirrors the standalone example at the top of the root README. The [customization tests](customization/customization.test.ts) verify untouched fields and precedence.
+
+[Schema policies](schema-policies/README.md) demonstrate defaults, optional properties and supplied values.

@@ -9,7 +9,10 @@ import { Customer } from './models/customer.js';
 import { quickStartPeople } from './recipes/quick-start.js';
 import { automaticPeople, peopleUsingBoth, peopleUsingFields, peopleUsingRules } from './customization/fixtures.js';
 
+import { defaultsDemo } from './schema-policies/defaults.js';
+
 const demos = {
+  defaults: defaultsDemo,
   'quick-start': () => quickStartPeople.one(runOptions),
   'fields-only': () => peopleUsingFields.one(runOptions),
   'rules-only': () => peopleUsingRules.one(runOptions),
