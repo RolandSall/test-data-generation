@@ -63,6 +63,18 @@ const extracted = extractedOrders.one({ seed: 42 });
 
 The adapter supports resolved generics, inheritance, unions, recursive types and supported collections. Pass `{ tsconfig: './tsconfig.json' }` as the third argument when needed. Extraction requires the source files and compiler peer. It returns runtime shapes, without installing a transformer or automatically generating source files. A generic annotation supplies a return type; it does not independently prove that the named declaration has the same structure. Methods, `any`/`unknown`/`never`, and unbound type parameters need explicit shapes/providers.
 
+### Branded primitives
+
+The compiler adapter recognizes string/number intersections whose additional members are required, readonly unique-symbol properties with string or number literal markers. It generates the underlying primitive, including in nested objects and collections; `describeType<YourModel>()` retains your declared branded output type. A brand does not imply numeric bounds, uniqueness or domain validation. Primitive literals retain their literal constraint.
+
+```ts
+// In your model source file:
+declare const brand: unique symbol;
+type Identifier = number & { readonly [brand]: 'Identifier' };
+```
+
+String-key brands, mutable/optional markers and arbitrary intersections with additional requirements require explicit shapes/providers. They are rejected rather than silently reduced to a primitive. As with all compiler extraction, the generic annotation must match the declaration you ask to read.
+
 ## Real class instances
 
 A typed transformation can call your constructor with generated arguments:
