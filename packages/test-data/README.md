@@ -13,6 +13,7 @@ Requires Node.js 22.22+. ESM and CommonJS are supported; integrations are option
 | Create an object or batch | [Quick start](#quick-start) |
 | Use an existing interface, class, or Zod schema | [Models and adapters](https://github.com/RolandSall/test-data-generation/blob/main/docs/models.md) |
 | Customize a field or nested field | [Field overrides](https://github.com/RolandSall/test-data-generation/blob/main/docs/recipes.md#customize-individual-and-nested-fields) |
+| Choose direct overrides or selector rules | [Fields or rules](#choose-fields-or-rules) |
 | Select fields and scalar types with compiler checks | [Typed selectors](https://github.com/RolandSall/test-data-generation/blob/main/docs/recipes.md#typed-selectors) |
 | Generate inherited classes and polymorphic collections | [Inheritance](https://github.com/RolandSall/test-data-generation/blob/main/docs/models.md#inheritance-and-polymorphism) |
 | Target every boolean under an object | [Type rules](https://github.com/RolandSall/test-data-generation/blob/main/docs/recipes.md#match-types-throughout-a-subtree) |
@@ -71,6 +72,28 @@ const replay = orders.one({ seed: 42 }); // Same values as order
 
 Interfaces disappear at runtime. Use explicit shapes or the compiler adapter to read a source declaration. Real class instances require a constructor factory; a generic type alone cannot infer fields. See [model choices](https://github.com/RolandSall/test-data-generation/blob/main/docs/models.md).
 
+## Choose fields or rules
+
+`fields` and `rules` are both optional. Use either on its own, combine them, or omit both to generate every declared field automatically. These two recipes customize the same properties:
+
+```ts
+import { select } from '@integration-testing/test-data-generation';
+
+const usingFields = defineFixture(OrderShape, {
+  fields: { status: 'pending', customer: { name: 'Ada' } },
+});
+
+const selectors = select(OrderShape);
+const usingRules = defineFixture(OrderShape, {
+  rules: [
+    selectors.field(order => order.status).use('pending'),
+    selectors.field(order => order.customer.name).use('Ada'),
+  ],
+});
+```
+
+Use `fields` for direct, typed property overrides. Use `rules` for property callbacks with autocomplete and IDE rename, or for matching many fields by scalar kind or subtree. Unspecified properties still generate. If you choose to combine both and they target the same property, its `fields` instruction takes precedence; configuring a property twice is not required. See [choosing a customization style](https://github.com/RolandSall/test-data-generation/blob/main/docs/recipes.md#choose-fields-or-rules).
+
 ## Customize fields and nested objects
 
 ```ts
@@ -94,13 +117,10 @@ Unspecified fields continue to generate, including the country, preferences, and
 ## Select fields with type checking
 
 ```ts
-import { select } from '@integration-testing/test-data-generation';
-
-const orderFields = select(OrderShape);
 const selectedOrders = orders.extend({ rules: [
-  orderFields.field(order => order.customer.name).use('Ada'),
-  orderFields.field(order => order.total).use(integer({ min: 100, max: 500 })),
-  orderFields.all('boolean', { under: order => order.customer.preferences }).use(true),
+  selectors.field(order => order.customer.name).use('Ada'),
+  selectors.field(order => order.total).use(integer({ min: 100, max: 500 })),
+  selectors.all('boolean', { under: order => order.customer.preferences }).use(true),
 ] });
 const selectedOrder = selectedOrders.one({ seed: 42 });
 ```

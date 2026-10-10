@@ -81,9 +81,9 @@ if (!(invoice instanceof Invoice)) throw new Error('Expected a real instance');
 Selectors can refer to the actual class members:
 
 ```ts
-const invoiceFields = select(invoices.shape);
+const invoiceSelectors = select(invoices.shape);
 const fixedInvoices = invoices.extend({ rules: [
-  invoiceFields.field(invoice => invoice.total).use(100),
+  invoiceSelectors.field(invoice => invoice.total).use(100),
 ] });
 const fixedInvoice = fixedInvoices.one({ seed: 42 });
 ```

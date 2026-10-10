@@ -7,6 +7,55 @@ import { defineFixture, shape, generator, boolean, integer, oneOf, uuid, annotat
 import { OrderShape, orders } from './models.js';
 ```
 
+## Choose fields or rules
+
+You do not need both. `fields` and `rules` are optional, independent customization styles. Start with either, or supply neither for automatic generation:
+
+| Style | Use it for |
+| --- | --- |
+| Only `fields` | Direct values, generators and partial nested field trees |
+| Only `rules` | Property callbacks with IDE rename support, or matching multiple fields by kind/scope |
+| Both | General matching rules plus explicit overrides for selected properties |
+| Neither | Generate every declared field using the shape and default settings |
+
+For the same two properties, these recipes are equivalent customizations:
+
+```ts
+const fieldsOnly = defineFixture(OrderShape, {
+  fields: { status: 'pending', customer: { name: 'Ada' } },
+});
+
+const selectors = select(OrderShape);
+const rulesOnly = defineFixture(OrderShape, {
+  rules: [
+    selectors.field(order => order.status).use('pending'),
+    selectors.field(order => order.customer.name).use('Ada'),
+  ],
+});
+const fromFields = fieldsOnly.one({ seed: 42 });
+const fromRules = rulesOnly.one({ seed: 42 });
+if (fromFields.status !== fromRules.status || fromFields.customer.name !== fromRules.customer.name) {
+  throw new Error('Expected the same customized properties');
+}
+```
+
+Both generate all the other declared fields normally. Each style accepts typed custom generators; choose the selector form when property references and IDE rename are your priority. Here `selectors` is the result of `select(OrderShape)`; the configuration property `fields` contains direct overrides.
+
+Precedence matters only when you combine styles. For example, you can set every generated boolean in a subtree to `true` with a rule, then explicitly set one to `false`:
+
+```ts
+const combinedStyles = defineFixture(OrderShape, {
+  rules: [selectors.all('boolean', { under: order => order.customer.preferences }).use(true)],
+  fields: { customer: { preferences: { sms: false } } },
+});
+const combinedOrder = combinedStyles.one({ seed: 42 });
+if (combinedOrder.customer.preferences.sms !== false || combinedOrder.customer.preferences.email !== true) {
+  throw new Error('Expected the explicit override to take precedence');
+}
+```
+
+`fields` takes precedence for `sms`; the rule still applies to the other booleans. You never need to specify the same property in both places. This precedence resolves generation instructions; rule filters/uniqueness checks and opt-in schema validation can still reject an overridden value.
+
 ## Customize individual and nested fields
 
 ```ts
@@ -26,11 +75,11 @@ const customOrder = custom.one({ seed: 42 });
 Bind selectors to a runtime shape. Property callbacks refer to your model properties directly, so autocomplete and IDE rename work without maintaining dotted string literals. Property names, replacement values and generator outputs are checked by TypeScript:
 
 ```ts
-const orderFields = select(OrderShape);
+const orderSelectors = select(OrderShape);
 const selectedOrders = orders.extend({ rules: [
-  orderFields.field(order => order.customer.address.city).use('Paris'),
-  orderFields.field(order => order.total).use(integer({ min: 100, max: 500 })),
-  orderFields.all('boolean', { under: order => order.customer.preferences }).use(true),
+  orderSelectors.field(order => order.customer.address.city).use('Paris'),
+  orderSelectors.field(order => order.total).use(integer({ min: 100, max: 500 })),
+  orderSelectors.all('boolean', { under: order => order.customer.preferences }).use(true),
 ] });
 const selectedOrder = selectedOrders.one({ seed: 42 });
 ```

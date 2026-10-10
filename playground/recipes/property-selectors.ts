@@ -7,10 +7,10 @@ export const PropertyOrderShape = shape.object({
   customer: CustomerShape,
   preferences: shape.object({ email: shape.boolean(), security: shape.object({ rememberMe: shape.boolean() }) }),
 });
-const fields = select(PropertyOrderShape);
+const selectors = select(PropertyOrderShape);
 export const propertyOrders = defineFixture(PropertyOrderShape, { rules: [
   // customer is typed as the actual Customer class. IDE rename follows its name property.
-  fields.field(order => order.customer.name).use('Ada'),
-  fields.field(order => order.customer.age).use(integer({ min: 18, max: 65 })),
-  fields.all('boolean', { under: order => order.preferences }).use(true),
+  selectors.field(order => order.customer.name).use('Ada'),
+  selectors.field(order => order.customer.age).use(integer({ min: 18, max: 65 })),
+  selectors.all('boolean', { under: order => order.preferences }).use(true),
 ] });
