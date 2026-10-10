@@ -27,6 +27,12 @@ const people = defineFixture(PersonShape, {
 
 const person = people.one({ seed: 42 });
 console.log(person);
+
+const selectedPerson = people.one({
+  seed: 42, onlyProvided: true, fields: { name: 'Ada' },
+});
+// { name: 'Ada' }; unselected properties are absent; the type is partial.
+
 ```
 
 Output with seed `42`:
@@ -35,7 +41,7 @@ Output with seed `42`:
 { name: 'Ada', age: 30, active: true }
 ```
 
-`person` is inferred as `{ name: string; age: number; active: boolean }`. The name is fixed; age and active status generate automatically. This example uses only `rules`; `fields` is optional. Omit the customization to generate every property, or use `people.many(3, { seed: 42 })` for a batch.
+`person` is inferred as `{ name: string; age: number; active: boolean }`. The name is fixed; age and active status generate automatically. This example uses only `rules`; `fields` is optional. Full generation is the default, including when you override some fields. `onlyProvided: true` selects only properties in the merged `fields` tree and returns a partial type. Omit the customization to generate every property, or use `people.many(3, { seed: 42 })` for a batch.
 
 ## Find your use case
 

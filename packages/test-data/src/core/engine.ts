@@ -1,3 +1,4 @@
+import { OMITTED } from './execution/omitted.js';
 import { GenerationError } from './error.js';
 import type { Fixture, ResolvedConfig, RunOptions } from './recipe.js';
 import { validateShape } from './validation.js';
@@ -20,6 +21,7 @@ export class Engine {
   get random() { return this.session.random; }
 
   make<T>(fixture: Fixture<T>, options: RunOptions<T> = {}, index = 0, existing?: unknown, mode: GenerationMode = 'generate'): T {
+    if (mode === 'provided' && !['object', 'lazy', 'optional', 'nullable', 'union', 'transform'].includes(fixture.shape.kind)) throw new GenerationError('CONFIGURATION', 'onlyProvided requires an object model', '$', this.seed);
     const state = new GraphState(this.session, mode);
     const traversal = new GraphTraversal(state);
     const config = fixture.resolve(options);
@@ -30,6 +32,7 @@ export class Engine {
         input: config.fields, existing, provided: existing !== undefined,
         config: config as ResolvedConfig<unknown>,
       });
+      if (output === OMITTED) output = undefined;
       state.root = output;
       output = resolveReferences(output, output, this.seed);
       output = state.effects.complete(

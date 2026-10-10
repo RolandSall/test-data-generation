@@ -147,6 +147,32 @@ if (normalized.customer.name !== normalized.customer.name.toUpperCase()) throw n
 
 Return replacements for immutable objects. Transformations compose after dependencies/references. Supplied opaque values are excluded unless `includeSupplied: true`; null/undefined are skipped. Strict callbacks matching only excluded values are unused.
 
+## Only provided properties
+
+Normal `one()` generation fills the full model, including when some fields are overridden. Opt into `onlyProvided: true` on `one()`, `many()`, `stream()`, `result()`, or a session's `make()`/`makeMany()` call to generate only the merged recipe/case/call `fields` tree. Selected fields can be fixed values or generators. Nested objects retain only their selected children; unselected objects and collections are absent.
+
+```ts file=only-provided.ts standalone
+import { defineFixture, shape, integer } from '@integration-testing/test-data-generation';
+const people = defineFixture(shape.object({
+  name: shape.string(), age: shape.integer(),
+  address: shape.object({ city: shape.string(), zip: shape.string() }),
+  tags: shape.array(shape.string()),
+}));
+const full = people.one({ seed: 42, fields: { name: 'Ada' } });
+const selected = people.one({
+  seed: 42, onlyProvided: true,
+  fields: { name: 'Ada', age: integer({ min: 18, max: 18 }), address: { city: 'Beirut' } },
+});
+// { name: 'Ada', age: 18, address: { city: 'Beirut' } }
+// selected has a DeepPartial model type. No zip or tags property exists.
+```
+
+No provided fields yields `{}`. Supplied null/falsy/empty values remain supplied values. Rules/providers affect visited properties; rules do not select additional properties. Unvisited rules still follow normal strict matching, so mark intentionally reusable rules `optional: true`. Feeds and computations do not implicitly select additional properties. Complete supplied objects and object generators remain opaque values and can contain all fields they intentionally return.
+
+This mode produces partial plain data objects. Class factories and arbitrary object transformations need complete inputs and cannot safely infer partial outputs; they fail explicitly unless a complete value/generator replaces that node. Normal class generation stays unchanged. `check: 'schema'` validates the full declared schema and will reject omission of required fields. `blank()` retains its existing blank-object/empty-collection behavior.
+
+`omit()` removes a property; null is an actual value and supplied `value(undefined)` retains an own property containing undefined. Fields and rules now omit consistently, including removal during `fill()`. **Behavior correction:** `fields: { name: omit() }` previously left an own key with undefined; it now removes that key. Collection-element omission retains its existing undefined-element behavior. See [the selective playground](../playground/schema-policies/README.md).
+
 ## Filters and uniqueness
 
 ```ts

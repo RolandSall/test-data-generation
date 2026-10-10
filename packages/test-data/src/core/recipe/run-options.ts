@@ -8,6 +8,8 @@ export interface RunOptions<Model = unknown> {
   now?: Date | string;
   case?: string;
   fields?: Fields<Model>;
+  /** Full generation is the default. Use OnlyProvidedOptions on a generation call to opt out. */
+  onlyProvided?: false;
   check?: 'none' | 'schema';
   strict?: boolean;
   maxDepth?: number;

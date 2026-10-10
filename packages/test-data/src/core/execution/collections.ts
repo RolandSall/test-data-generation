@@ -1,3 +1,4 @@
+import { OMITTED } from './omitted.js';
 import { GenerationError } from '../error.js';
 import type { Shape } from '../shape.js';
 import { stableKey } from '../validation.js';
@@ -23,7 +24,8 @@ export function buildCollection(state: GraphState, traversal: NodeTraversal, req
       const element = node.kind === 'tuple' ? node.members![index]! : node.element!;
       const valuePath = node.kind === 'record' ? path + '.' + String(key)
         : node.kind === 'map' ? path + '.' + index + '.value' : path + '.' + index;
-      const value = traversal.visit({ node: element, path: valuePath, depth: depth + 1, index });
+      const generated = traversal.visit({ node: element, path: valuePath, depth: depth + 1, index });
+      const value = generated === OMITTED ? undefined : generated;
       const identity = node.kind === 'map' || node.kind === 'record' ? stableKey(key) : distinct ? stableKey(value) : '';
       if (distinct && keys.has(identity)) {
         state.effects.rollback(checkpoint);
@@ -47,7 +49,7 @@ export function buildCollection(state: GraphState, traversal: NodeTraversal, req
 function populateExisting(traversal: NodeTraversal, request: BuildRequest): unknown {
   const { node, path, depth, index, existing } = request;
   const element = (value: unknown, i: number, member = node.element!, memberPath = path + '.' + i) =>
-    traversal.visit({ node: member, path: memberPath, depth: depth + 1, index: i, existing: value, provided: true });
+    normalizeOmission(traversal.visit({ node: member, path: memberPath, depth: depth + 1, index: i, existing: value, provided: true }));
   if (Array.isArray(existing)) {
     return existing.map((value: unknown, i) => element(value, i, node.kind === 'tuple' ? node.members![i]! : node.element!));
   }
@@ -93,7 +95,10 @@ function collectionKey(state: GraphState, traversal: NodeTraversal, request: Bui
   const { node, path, depth } = request;
   if (node.kind === 'map' || node.kind === 'record' && node.key) {
     const key = traversal.visit({ node: node.key!, path: path + '.' + index + '.key', depth: depth + 1, index });
-    return node.kind === 'record' ? String(key) : key;
+    const normalized = normalizeOmission(key);
+    return node.kind === 'record' ? String(normalized) : normalized;
   }
   return node.kind === 'record' ? state.session.random.text(8) : undefined;
 }
+
+function normalizeOmission(value: unknown): unknown { return value === OMITTED ? undefined : value; }

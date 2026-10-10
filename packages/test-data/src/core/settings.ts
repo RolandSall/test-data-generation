@@ -1,7 +1,7 @@
 import { GenerationError } from './error.js';
 import type { RunOptions } from './recipe.js';
 import type { Constraints, Kind } from './shape.js';
-export type SettingsOptions = Omit<RunOptions, 'fields' | 'case' | 'trace'>;
+export type SettingsOptions = Omit<RunOptions, 'fields' | 'case' | 'trace' | 'onlyProvided'>;
 /** Explicit layers keep configuration deterministic and avoid mutable process-global settings. */
 export function resolveSettings({ defaults = {}, environment = {}, overrides = {} }: {
   defaults?: RunOptions; environment?: Readonly<Record<string, string | undefined>>; overrides?: RunOptions;

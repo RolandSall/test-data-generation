@@ -19,6 +19,7 @@ export class GenerationSession {
   private readonly defaults = new WeakMap<Shape, Shape>();
 
   constructor(options: RunOptions = {}) {
+    if (options.onlyProvided !== undefined && options.onlyProvided !== false) throw new GenerationError('CONFIGURATION', 'onlyProvided belongs on a fixture generation call');
     this.seed = options.seed ?? defaultSeed();
     this.random = new Random(this.seed);
     this.now = new Date(options.now ?? new Date());

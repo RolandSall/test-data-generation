@@ -13,7 +13,10 @@ import { defaultsDemo } from './schema-policies/defaults.js';
 
 import { modesDemo } from './schema-policies/modes.js';
 
+import { selectiveDemo } from './schema-policies/selective.js';
+
 const demos = {
+  selective: selectiveDemo,
   'schema-modes': modesDemo,
   defaults: defaultsDemo,
   'quick-start': () => quickStartPeople.one(runOptions),

@@ -1,4 +1,5 @@
 import { GenerationError } from '../error.js';
+import { OMITTED } from './omitted.js';
 import { write } from '../path.js';
 import { computeFields } from './computed.js';
 import { decodeColumn, projectFeed } from './feed-projection.js';
@@ -18,6 +19,7 @@ export function buildObject(state: GraphState, traversal: NodeTraversal, request
     throw new GenerationError('CONSTRUCTION', 'Cannot populate frozen object', path, seed);
   }
   if (path === '$') state.root = data;
+  if (state.mode === 'provided' && node.factory) throw new GenerationError('CONFIGURATION', 'onlyProvided requires a plain data object; class factories need complete constructor inputs or an explicit generator', path, seed);
   const declared = node.fields ?? {};
   for (const key of Object.keys(fields ?? {})) {
     if (!Object.hasOwn(declared, key)) throw new GenerationError('CONFIGURATION', 'Unknown field ' + key, path, seed);
@@ -26,10 +28,11 @@ export function buildObject(state: GraphState, traversal: NodeTraversal, request
     if (!Object.hasOwn(declared, key)) throw new GenerationError('CONFIGURATION', 'Unknown computed field ' + key, path, seed);
     if (Object.hasOwn(fields ?? {}, key)) throw new GenerationError('DEPENDENCY', 'Field ' + key + ' is both computed and overridden', path, seed);
   }
-  const feed = projectFeed(config, declared, state.context(request), blank);
+  const feed = state.mode === 'provided' ? {} : projectFeed(config, declared, state.context(request), blank);
   state.parents.set(node, path);
   try {
     for (const [key, member] of Object.entries(declared)) {
+      if (state.mode === 'provided' && !Object.hasOwn(fields ?? {}, key)) continue;
       if (Object.hasOwn(config?.computed ?? {}, key)) continue;
       const hasExisting = Object.hasOwn(data, key);
       const existingValue = hasExisting ? (data as Record<string, unknown>)[key] : undefined;
@@ -41,9 +44,10 @@ export function buildObject(state: GraphState, traversal: NodeTraversal, request
       const output = blank && !hasInput
         ? traversal.blankNode(location)
         : traversal.visit({ ...location, input, existing: existingValue, provided: hasExisting });
-      if (output !== undefined || hasExisting || hasInput) write(data, key, output);
+      if (output === OMITTED) Reflect.deleteProperty(data, key);
+      else if (output !== undefined || hasExisting || hasInput) write(data, key, output);
     }
-    if (state.mode !== 'blank' && !blank) computeFields(data, config, path, seed);
+    if (state.mode !== 'blank' && state.mode !== 'provided' && !blank) computeFields(data, config, path, seed);
     const output = node.factory && existing === undefined ? constructInstance(request, data, seed) : data;
     if (path === '$') state.root = output;
     return output;

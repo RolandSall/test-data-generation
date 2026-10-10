@@ -1,7 +1,7 @@
 export { shape, constrain, annotate, refine, Decimal, decimalShape } from './core/shape.js';
 export type { Shape, Infer, Constraints, Kind } from './core/shape.js';
 export { defineFixture, fixtureRun, Fixture } from './core/recipe.js';
-export type { RecipeConfig, RunOptions, FixtureOverrides, GenerationResult, DeepPartial, Provider, TraceEvent } from './core/recipe.js';
+export type { RecipeConfig, RunOptions, FixtureOverrides, GenerationResult, DeepPartial, Provider, TraceEvent, OnlyProvidedOptions, OnlyProvidedOverrides, FixtureSession } from './core/recipe.js';
 export { generator, value, shared, fresh, populate, omit, blank, reference } from './core/instructions.js';
 export type { Generator, GeneratorContext } from './core/instructions/generator.js';
 export type { Fields } from './core/types/field-overrides.js';

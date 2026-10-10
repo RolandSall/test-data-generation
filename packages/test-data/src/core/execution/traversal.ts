@@ -1,3 +1,4 @@
+import { OMITTED } from './omitted.js';
 import { GenerationError } from '../error.js';
 import { isFixture } from '../fixture-identity.js';
 import { clone, isPlain } from '../path.js';
@@ -43,7 +44,7 @@ export class GraphTraversal implements NodeTraversal {
 
     if (isInstruction(use)) {
       switch (use[instruction]) {
-        case 'omit': return undefined;
+        case 'omit': return OMITTED;
         case 'value': case 'shared': {
           const output = use[instruction] === 'shared' ? use.value : clone(use.value);
           this.state.queueCallbacks(location, output, true);
@@ -72,7 +73,7 @@ export class GraphTraversal implements NodeTraversal {
     if (node.kind === 'optional' || node.kind === 'nullable') {
       if (use === null || (use === undefined && provided && existing === null && this.state.mode !== 'nullish')) return null;
       const probability = node.kind === 'optional' ? session.options.optionalProbability : session.options.nullProbability;
-      if (use === undefined && !provided && !blank && session.random.boolean(probability)) {
+      if (use === undefined && !provided && !(fields && (depth > 0 || Object.keys(fields).length > 0)) && !blank && this.state.mode !== 'provided' && session.random.boolean(probability)) {
         return node.kind === 'optional' ? undefined : null;
       }
       return this.visit({ ...location, node: node.element!, input: use ?? fields, existing, provided, config, skipUse });
@@ -147,6 +148,7 @@ export class GraphTraversal implements NodeTraversal {
       return this.visit({ ...request, node: this.state.session.random.pick(node.members!), input: fields, skipUse: false });
     }
     if (node.kind === 'transform' && !blank) {
+      if (this.state.mode === 'provided') throw new GenerationError('CONFIGURATION', 'onlyProvided cannot infer partial transformation output; use a plain data shape or supply a complete generator/value', request.path, this.state.session.seed);
       const input = this.visit({ ...request, node: node.element!, input: fields });
       try { return node.transform!(input); }
       catch (error) {
@@ -169,6 +171,7 @@ export class GraphTraversal implements NodeTraversal {
     const { node, fields, config, blank } = request;
     if (rules.some(rule => rule.filter && !rule.filter(output))) return [{ path: request.path, message: 'Rule filter rejected value' }];
     const hasOverrides = node.kind === 'object' && (
+      this.state.mode === 'provided' ||
       fields && Object.keys(fields).length > 0 || config?.source ||
       Object.keys(config?.computed ?? {}).length > 0 || this.state.registry.hasUsedOverrides()
     );
