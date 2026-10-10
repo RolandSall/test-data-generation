@@ -98,14 +98,14 @@ import { select } from '@integration-testing/test-data-generation';
 
 const orderFields = select(OrderShape);
 const selectedOrders = orders.extend({ rules: [
-  orderFields.field('customer.name').use('Ada'),
-  orderFields.field('total').use(integer({ min: 100, max: 500 })),
-  orderFields.all('boolean', { under: 'customer.preferences' }).use(true),
+  orderFields.field(order => order.customer.name).use('Ada'),
+  orderFields.field(order => order.total).use(integer({ min: 100, max: 500 })),
+  orderFields.all('boolean', { under: order => order.customer.preferences }).use(true),
 ] });
 const selectedOrder = selectedOrders.one({ seed: 42 });
 ```
 
-Unknown paths and incompatible values/generators fail TypeScript checking. Paths also get checked against the runtime shape. Read [typed selectors and field errors](https://github.com/RolandSall/test-data-generation/blob/main/docs/recipes.md#typed-selectors) for details.
+Property callbacks provide autocomplete and IDE rename support, with no dotted path string to maintain. Unknown properties and incompatible values/generators fail TypeScript checking. Paths also get checked against the runtime shape. Read [typed selectors and field errors](https://github.com/RolandSall/test-data-generation/blob/main/docs/recipes.md#typed-selectors) for details.
 
 ## Match types throughout a nested object
 
@@ -164,7 +164,7 @@ bun run examples:test
 
 Examples are excluded from the npm package.
 
-The [inheritance playground](https://github.com/RolandSall/test-data-generation/blob/main/playground/inheritance/README.md) includes real `Dog`/`Cat` subclasses, an implemented contract, polymorphic nested collections, typed selectors and unknown-field errors. Run `bun run playground inheritance` or `bun run playground polymorphism`.
+The [inheritance playground](https://github.com/RolandSall/test-data-generation/blob/main/playground/inheritance/README.md) includes real `Dog`/`Cat` subclasses, an implemented contract, polymorphic nested collections, typed selectors and unknown-field errors. Run `bun run playground inheritance` or `bun run playground polymorphism`. The [property-selector recipe](https://github.com/RolandSall/test-data-generation/blob/main/playground/recipes/property-selectors.ts) targets a real nested `Customer` class with property callbacks; run `bun run playground property-selectors`.
 
 ## Optional integrations
 

@@ -17,7 +17,7 @@ Start with explicit shapes. The optional `/typescript` entry reads existing decl
 ## Typed shapes
 
 ```ts
-import { defineFixture, shape, type Infer, fromJsonSchema, fromColumns } from '@integration-testing/test-data-generation';
+import { defineFixture, shape, type Infer, fromJsonSchema, fromColumns, select } from '@integration-testing/test-data-generation';
 
 const ProductShape = shape.object({
   sku: shape.string({ pattern: /^SKU-\d{4}$/ }),
@@ -77,6 +77,18 @@ const invoices = defineFixture(shape.transform(InvoiceInput, input => new Invoic
 const invoice = invoices.one({ seed: 42 });
 if (!(invoice instanceof Invoice)) throw new Error('Expected a real instance');
 ```
+
+Selectors can refer to the actual class members:
+
+```ts
+const invoiceFields = select(invoices.shape);
+const fixedInvoices = invoices.extend({ rules: [
+  invoiceFields.field(invoice => invoice.total).use(100),
+] });
+const fixedInvoice = fixedInvoices.one({ seed: 42 });
+```
+
+The callback is typed as `Invoice`. An IDE rename of `Invoice.total` can update this member access. Your runtime input shape must also describe the renamed field; arbitrary constructor transformations are not automatically mapped. Static access such as `Invoice.total` is not an instance-field reference in TypeScript.
 
 For initialized fields and registered setters, use [class factories](graphs.md#class-factories-and-setters). Compiler extraction alone produces a plain object. Passing a bare constructor does not infer its declared property types.
 

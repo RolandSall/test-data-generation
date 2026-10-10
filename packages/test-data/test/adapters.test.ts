@@ -64,7 +64,8 @@ describe('JSON Schema and column metadata', () => {
     const p = defineFixture(node).one(options); expect(String(p.code).length).toBeLessThanOrEqual(4); expect(String(p.amount)).toMatch(/^[1-7]\.\d{3}$/); expect(validateShape(node, p)).toEqual([]);
   });
 });
-describe('TypeScript compiler metadata', () => {
+// Full compiler programs can exceed the default five seconds under CI coverage.
+describe('TypeScript compiler metadata', { timeout: 15_000 }, () => {
   test('interfaces, nested generics, inheritance, unions and recursive optional fields', async () => {
     const path = join(await directory(), 'models.ts');
     await writeFile(path, 'interface Base { id: string }\ninterface Box<T> { value: T }\nexport interface Person extends Base { age: number; kind: "A" | "B"; box: Box<string[]>; labels: Map<string, number>; flags: Set<boolean>; date: Date; next?: Person }');

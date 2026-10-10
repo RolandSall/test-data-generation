@@ -46,7 +46,7 @@ describe('inheritance and polymorphism through the public package', () => {
   });
 
   test('runs constructor guards instead of bypassing domain invariants', () => {
-    expect(() => defineFixture(CatShape, { rules: [select(CatShape).field('lives').use(20)] }).one(runOptions)).toThrow(/Lives must be between 1 and 9/);
+    expect(() => defineFixture(CatShape, { rules: [select(CatShape).field(cat => cat.lives).use(20)] }).one(runOptions)).toThrow(/Lives must be between 1 and 9/);
   });
 
   test('overrides existing inherited fields and reports three kinds of unknown field', () => {

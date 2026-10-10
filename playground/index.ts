@@ -4,6 +4,8 @@ import { contactsFromCsv } from './recipes/contacts.js';
 import { accounts } from './recipes/accounts.js';
 import { runOptions } from './run-options.js';
 import { inheritanceDemo, polymorphismDemo, unknownFieldsDemo } from './inheritance/scenarios.js';
+import { propertyOrders } from './recipes/property-selectors.js';
+import { Customer } from './models/customer.js';
 
 const demos = {
   orders: () => orders.one(runOptions),
@@ -19,6 +21,10 @@ const demos = {
   inheritance: inheritanceDemo,
   polymorphism: polymorphismDemo,
   'unknown-fields': unknownFieldsDemo,
+  'property-selectors': () => {
+    const order = propertyOrders.one(runOptions);
+    return { order, customerIsInstanceOfCustomer: order.customer instanceof Customer, greeting: order.customer.greet() };
+  },
 };
 
 const selected = process.argv[2];

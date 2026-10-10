@@ -21,6 +21,7 @@ bun run playground:test
 | `zod` | Generation from an existing Zod schema |
 | `inheritance` | Inherited fields and methods, a real subclass and an implemented interface |
 | `polymorphism` | Registered concrete subclasses in a nested collection and overridden behavior |
+| `property-selectors` | Property callbacks targeting a real nested `Customer`, typed generators and a subtree scope |
 | `unknown-fields` | Existing-field overrides, unknown fields and typed selector errors |
 
 Change the [Order model](../playground/models/order.ts), [order recipe](../playground/recipes/orders.ts), [CSV input](../playground/data/contacts.csv), or [Zod schema](../playground/recipes/accounts.ts), then rerun. The [seed and clock](../playground/run-options.ts) are fixed so you can replay the output.
@@ -30,3 +31,5 @@ The playground is available in the repository and excluded from the npm package.
 For application-style code with separate interfaces, classes and composed fixtures, explore the [example packages](examples.md).
 
 For runtime class behavior and a typed selection DSL, start with the [inheritance playground](../playground/inheritance/README.md), its [recipes](../playground/inheritance/fixtures.ts), and [tests](../playground/inheritance/inheritance.test.ts).
+
+The [property-selector recipe](../playground/recipes/property-selectors.ts) uses `order => order.customer.name`, with `customer` typed as the actual [Customer class](../playground/models/customer.ts). Run `bun run playground property-selectors` to print generated data and a constructor check.

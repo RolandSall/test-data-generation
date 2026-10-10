@@ -23,23 +23,25 @@ const customOrder = custom.one({ seed: 42 });
 
 ## Typed selectors
 
-Bind selectors to a runtime shape. Field names, nested paths, replacement values and generator outputs are checked by TypeScript:
+Bind selectors to a runtime shape. Property callbacks refer to your model properties directly, so autocomplete and IDE rename work without maintaining dotted string literals. Property names, replacement values and generator outputs are checked by TypeScript:
 
 ```ts
 const orderFields = select(OrderShape);
 const selectedOrders = orders.extend({ rules: [
-  orderFields.field('customer.address.city').use('Paris'),
-  orderFields.field('total').use(integer({ min: 100, max: 500 })),
-  orderFields.all('boolean', { under: 'customer.preferences' }).use(true),
+  orderFields.field(order => order.customer.address.city).use('Paris'),
+  orderFields.field(order => order.total).use(integer({ min: 100, max: 500 })),
+  orderFields.all('boolean', { under: order => order.customer.preferences }).use(true),
 ] });
 const selectedOrder = selectedOrders.one({ seed: 42 });
 ```
 
-`field('total').use('wrong')`, `field('customer.typo')`, and `all('boolean').use(123)` are compile errors. Scope paths passed to `under` are checked too. `all()` supports string, number, integer, bigint, boolean, date, bytes and decimal runtime kinds. It includes matching descendants inside collections. For unions, `field()` exposes fields common to all variants; configure variant-specific fields in a concrete subtype recipe.
+`field(order => order.total).use('wrong')`, `field(order => order.customer.typo)`, and `all('boolean').use(123)` are compile errors. Scope paths passed to `under` are checked too. `all()` supports string, number, integer, bigint, boolean, date, bytes and decimal runtime kinds. It includes matching descendants inside collections. For unions, `field()` exposes fields common to all variants; configure variant-specific fields in a concrete subtype recipe.
 
-Selectors produce ordinary rules with the same precedence and strict matching. Use `all('boolean', { optional: true })` when a union variant might have no boolean fields. `use()` supplies a complete value, generator, operation or fixture; use `fields` for partial nested overrides. Field paths stop at collections and dates and cover five object levels. Keep raw rules for wildcards, indexes, metadata and predicates.
+Selectors produce ordinary rules with the same precedence and strict matching. Use `all('boolean', { optional: true })` when a union variant might have no boolean fields. `use()` supplies a complete value, generator, operation or fixture; use `fields` for partial nested overrides. Callbacks select a whole collection or date; they do not select collection indexes or invoke methods. The string alternative `field('customer.name')` remains available and enumerates paths through five object levels. Keep raw rules for wildcards, indexes, metadata and predicates.
 
-Paths are also checked against shape metadata immediately, including in JavaScript or after an unsafe cast. Constructors' methods are excluded from field paths. An initialized property or getter absent from the runtime shape cannot be selected. Select constructor input shapes when a transformation changes field names or value types; selectors cannot infer an arbitrary transformation's internal mapping.
+Callbacks run once against a property-tracking proxy; they do not construct your model or invoke its getters. Return a single field access such as `order => order.customer.name`, or `order => order.customer?.name` for an optional parent. Computations, method calls, mutations and unrelated multi-field reads are rejected; use `computed` or generators for value calculations. Optional access does not force an optional parent to generate, so a descendant rule may still be unmatched when its parent is omitted.
+
+Paths are also checked against shape metadata immediately, including in JavaScript or after an unsafe cast. Methods are not selectable generation fields. An initialized property or getter absent from the runtime shape cannot be selected. Select constructor input shapes when a transformation changes field names or value types; selectors cannot infer an arbitrary transformation's internal mapping. A rename still needs the runtime shape to describe the renamed field. See the [property-selector playground](../playground/recipes/property-selectors.ts) for selectors whose nested model is an actual class.
 
 ## Existing and unknown fields
 

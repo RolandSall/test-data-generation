@@ -13,7 +13,7 @@ bun run playground:test
 
 [`shapes.ts`](shapes.ts) shares inherited field descriptors, then constructs real instances through typed input transformations. `AnimalShape` explicitly registers both subtypes. `HouseholdShape` generates them in a nested collection. No automatic subclass discovery occurs.
 
-[`fixtures.ts`](fixtures.ts) shows typed selectors for inherited fields, all generated booleans, and a nested owner field. `dogHouseholds` replaces the union collection with a fixture whose element shape is exclusively `DogShape`. Its declared result type remains `Dog | Cat` to match the parent field; the runtime constructor is always `Dog`.
+[`fixtures.ts`](fixtures.ts) shows property-access selectors for inherited class fields (`animal => animal.name`), all generated booleans, and a nested owner field. `dogHouseholds` replaces the union collection with a fixture whose element shape is exclusively `DogShape`. Its declared result type remains `Dog | Cat` to match the parent field; the runtime constructor is always `Dog`.
 
 [`scenarios.ts`](scenarios.ts) prints prototype checks and polymorphic behavior. The unknown-fields demo intentionally simulates untyped configuration: existing inherited fields can be overridden; unknown override keys produce `CONFIGURATION`, unknown selector paths produce `CONFIGURATION` immediately, and unmatched raw rules produce `UNUSED_RULE`.
 

@@ -13,6 +13,7 @@ bun run playground zod
 bun run playground inheritance
 bun run playground polymorphism
 bun run playground unknown-fields
+bun run playground property-selectors
 bun run playground:test
 ```
 
@@ -23,3 +24,5 @@ Edit [the Order model](models/order.ts), [the order recipe](recipes/orders.ts), 
 The [tests](playground.test.ts) cover nested generation, custom fields, deep boolean rules, override precedence, derived values, scenarios, coherent feeds, sessions, schema validation and impossible collection sizes. The [inheritance examples](inheritance/README.md) add real subclasses, an implemented interface, polymorphic nested collections, typed selectors and missing-field errors, with [dedicated tests](inheritance/inheritance.test.ts).
 
 The playground is repository-only and excluded from the npm package. See the [user guides](../docs/README.md) for more examples, or [Contributing](../CONTRIBUTING.md) to work on the library itself.
+
+The [property-selector recipe](recipes/property-selectors.ts) references the actual [Customer class](models/customer.ts) through callbacks, including nested fields and subtree scopes. These member accesses support autocomplete and IDE rename, without a dotted path string.
