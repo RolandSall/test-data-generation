@@ -11,7 +11,10 @@ import { automaticPeople, peopleUsingBoth, peopleUsingFields, peopleUsingRules }
 
 import { defaultsDemo } from './schema-policies/defaults.js';
 
+import { modesDemo } from './schema-policies/modes.js';
+
 const demos = {
+  'schema-modes': modesDemo,
   defaults: defaultsDemo,
   'quick-start': () => quickStartPeople.one(runOptions),
   'fields-only': () => peopleUsingFields.one(runOptions),

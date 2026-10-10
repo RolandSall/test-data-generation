@@ -3,6 +3,8 @@ import { isFixture } from '../fixture-identity.js';
 import { clone, isPlain } from '../path.js';
 import { instruction, isInstruction, value, type GeneratorContext, type Rule } from '../instructions.js';
 import { scalarIssues } from '../validation.js';
+import { relativeIssuePath, validationIssues } from '../validation-issues.js';
+import type { Issue } from '../issue.js';
 import { buildObject } from './objects.js';
 import { buildCollection } from './collections.js';
 import { GraphReference } from './references.js';
@@ -106,11 +108,19 @@ export class GraphTraversal implements NodeTraversal {
     const { path, config, blank } = request;
     const { session, effects } = this.state;
     const nullRule = [...rules].reverse().find(rule => rule.nullable !== undefined);
+    let rejected: readonly Issue[] = [];
     for (let count = 0; count < session.options.maxAttempts; count++) {
       const checkpoint = effects.checkpoint();
       const nullable = !explicit && !blank && nullRule !== undefined && session.random.boolean(nullRule.nullable!);
-      const output = nullable ? null : this.construct(attempt);
-      if (!this.accepts(attempt, output, nullable) || !effects.uniqueness.reserve(output, rules, config)) {
+      let output: unknown;
+      try { output = nullable ? null : this.construct(attempt); }
+      catch (error) {
+        if (!(error instanceof GenerationError) || error.code !== 'VALIDATION') throw error;
+        rejected = [{ path: error.path, message: error.message }];
+        effects.rollback(checkpoint); continue;
+      }
+      rejected = this.rejections(attempt, output, nullable);
+      if (rejected.length || !effects.uniqueness.reserve(output, rules, config)) {
         effects.rollback(checkpoint);
         continue;
       }
@@ -119,7 +129,9 @@ export class GraphTraversal implements NodeTraversal {
       }
       return output;
     }
-    throw new GenerationError('RETRY_EXHAUSTED', 'Generation rejected ' + session.options.maxAttempts + ' attempts', path, session.seed);
+    const reason = rejected.length ? ': ' + rejected.map(issue => issue.path + ': ' + issue.message).join('; ') +
+      '. Supply a field generator or matching provider for unsupported refinements; arbitrary validation functions are not solved automatically' : '';
+    throw new GenerationError('RETRY_EXHAUSTED', 'Generation rejected ' + session.options.maxAttempts + ' attempts' + reason, rejected[0]?.path ?? path, session.seed);
   }
 
   private construct(attempt: GenerationRequest): unknown {
@@ -135,7 +147,14 @@ export class GraphTraversal implements NodeTraversal {
       return this.visit({ ...request, node: this.state.session.random.pick(node.members!), input: fields, skipUse: false });
     }
     if (node.kind === 'transform' && !blank) {
-      return node.transform!(this.visit({ ...request, node: node.element!, input: fields }));
+      const input = this.visit({ ...request, node: node.element!, input: fields });
+      try { return node.transform!(input); }
+      catch (error) {
+        if (error instanceof GenerationError && error.code === 'VALIDATION') {
+          throw new GenerationError('VALIDATION', error.message, relativeIssuePath(request.path, error.path), this.state.session.seed, { cause: error });
+        }
+        throw new GenerationError('CONSTRUCTION', error instanceof Error ? error.message : String(error), request.path, this.state.session.seed, { cause: error });
+      }
     }
     const build = { ...request, existing: attempt.preserving ? request.existing : undefined };
     if (node.kind === 'object') return buildObject(this.state, this, build);
@@ -145,18 +164,19 @@ export class GraphTraversal implements NodeTraversal {
     return provider ? provider.generate.generate(context) : generateScalar(node, context);
   }
 
-  private accepts(attempt: GenerationRequest, output: unknown, nullable: boolean): boolean {
+  private rejections(attempt: GenerationRequest, output: unknown, nullable: boolean): readonly Issue[] {
     const { request, use, preserving, rules } = attempt;
     const { node, fields, config, blank } = request;
-    if (rules.some(rule => rule.filter && !rule.filter(output))) return false;
+    if (rules.some(rule => rule.filter && !rule.filter(output))) return [{ path: request.path, message: 'Rule filter rejected value' }];
     const hasOverrides = node.kind === 'object' && (
       fields && Object.keys(fields).length > 0 || config?.source ||
       Object.keys(config?.computed ?? {}).length > 0 || this.state.registry.hasUsedOverrides()
     );
     if (use === undefined && !nullable && !blank && !preserving && !hasOverrides) {
-      if (scalarIssues(node, output, this.state.session.now).length || node.validate?.(output).length) return false;
+      const issues = [...scalarIssues(node, output, this.state.session.now).map(message => ({ path: request.path, message })), ...validationIssues(node, output, request.path)];
+      if (issues.length) return issues;
     }
-    return !config?.filter || config.filter(output);
+    return !config?.filter || config.filter(output) ? [] : [{ path: request.path, message: 'Recipe filter rejected value' }];
   }
 }
 

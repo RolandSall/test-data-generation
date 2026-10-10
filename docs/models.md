@@ -152,7 +152,25 @@ const user = users.one({ seed: 42, check: 'schema' });
 UserSchema.parse(user);
 ```
 
-Supported containers, recognized constraints, lazy types, unions, readonly objects, object intersections, refinements and synchronous transformations are supported. Arbitrary refinements use bounded retries. Custom schemas need providers, variadic tuples need explicit recipes, and async effects need application-owned preparation. Supported formats are listed in [generators](generators.md#formats-and-checksums).
+`fromZod(schema)` generates parsed output. `fromZod(schema, { mode: 'input' })` generates raw values accepted by the schema. Both retain the corresponding Zod type. Nested transformations and pipelines are supported; generated parsed children are validated as output rather than passed back into an input parser.
+
+```ts file=zod-modes.ts standalone
+import { defineFixture } from '@integration-testing/test-data-generation';
+import { fromZod } from '@integration-testing/test-data-generation/zod';
+import { z } from 'zod';
+const schema = z.object({ amount: z.literal('42').transform(Number) });
+const output = defineFixture(fromZod(schema)).one({ seed: 42, check: 'schema' });
+// { amount: 42 }; inferred as z.output<typeof schema>.
+const input = defineFixture(fromZod(schema, { mode: 'input' })).one({ seed: 42, check: 'schema' });
+// { amount: '42' }; inferred as z.input<typeof schema>.
+const parsed = schema.parse(input);
+```
+
+Overrides/generators supply values in the selected mode: output values in output mode, raw values in input mode. Pipeline input constraints guide generation; output checks and refinements can reject candidates within `maxAttempts`. Failures retain the failing path and validation message and explain how to supply a field generator/provider. Known formats include email, UUID, URL, IPv4, IPv6 and ISO date/time/datetime; unsupported formats fail explicitly and need a generator/provider.
+
+`schemaDefaults: 'preserve'` in output mode returns the declared output default or parsed prefault. In input mode, a default is represented by undefined/absence so the caller's parser can apply it; a prefault supplies its raw fallback. See [schema policies](configuration.md#schema-defaults-and-optional-properties).
+
+Supported containers, recognized constraints, lazy types, unions, readonly objects, object intersections, refinements and synchronous transformations are supported. Arbitrary refinements use bounded retries, not automatic solving. Validation can execute schema callbacks; keep those callbacks deterministic and free of external side effects. Arbitrary transformations cannot be reversed, and their output structure is not inferred for selectors; target the described generation-input fields or supply the complete transformed value. An explicit output override of an arbitrary transform has no inferred output validator unless the pipeline declares one. Custom schemas and unrepresentable preprocess inputs need providers, variadic tuples need explicit recipes, and async effects need caller-owned preparation. See the runnable [schema playground](../playground/schema-policies/README.md).
 
 ## JSON Schema
 

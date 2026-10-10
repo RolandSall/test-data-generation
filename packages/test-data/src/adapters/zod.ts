@@ -1,40 +1,30 @@
 import * as core from 'zod/v4/core';
-import { annotate, constrain, shape, type Constraints, type Shape } from '../core/shape.js';
+import { annotate, constrain, shape, type Shape } from '../core/shape.js';
 import { GenerationError } from '../core/error.js';
+import { readConstraints } from './zod/constraints.js';
+import { createOutputSchemaReader } from './zod/output-schema.js';
+import { zodIssues, parseZod } from './zod/issues.js';
+import type { ZodOptions } from './zod/zod-options.js';
+export type { ZodOptions } from './zod/zod-options.js';
 /** Traverses Zod's documented core definitions, with independent Zod validation. */
-export function fromZod<S extends core.$ZodType>(source: S): Shape<core.output<S>> {
+export function fromZod<S extends core.$ZodType>(source: S, options: { mode: 'input' }): Shape<core.input<S>>;
+export function fromZod<S extends core.$ZodType>(source: S, options?: { mode?: 'output' }): Shape<core.output<S>>;
+export function fromZod<S extends core.$ZodType>(source: S, options: ZodOptions): Shape<core.input<S> | core.output<S>>;
+export function fromZod(source: core.$ZodType, options: ZodOptions = {}): Shape {
+  if (options.mode !== undefined && !['input', 'output'].includes(options.mode)) throw new GenerationError('CONFIGURATION', 'Invalid Zod generation mode');
+  return createReader(options.mode ?? 'output')(source);
+}
+
+function createReader(mode: 'input' | 'output') {
+  const outputSchema = createOutputSchemaReader();
+  const inputReader = mode === 'output' ? createReader('input') : undefined;
   const cache = new WeakMap<core.$ZodType, Shape>();
   const visit = (source: core.$ZodType): Shape => {
     const cached = cache.get(source); if (cached) return cached;
     let output: Shape | undefined;
     cache.set(source, shape.lazy(() => output!));
     const definition = (source as core.$ZodTypes)._zod.def;
-    const c: Constraints = {};
-    const checks = definition.checks ?? [];
-    const format = (definition as unknown as { format?: string }).format;
-    if (format) c.format = normalizeFormat(format);
-    let integer = false;
-    for (const check of checks) {
-      const def = check._zod.def as core.$ZodChecks['_zod']['def'];
-      switch (def.check) {
-        case 'greater_than': if (typeof def.value === 'bigint') c.bigMin = def.value + (def.inclusive ? 0n : 1n); else c.min = Number(def.value) + (def.inclusive ? 0 : Number.EPSILON * Math.max(1, Math.abs(Number(def.value)))); break;
-        case 'less_than': if (typeof def.value === 'bigint') c.bigMax = def.value - (def.inclusive ? 0n : 1n); else c.max = Number(def.value) - (def.inclusive ? 0 : Number.EPSILON * Math.max(1, Math.abs(Number(def.value)))); break;
-        case 'multiple_of': c.multipleOf = Number(def.value); break;
-        case 'min_length': c.minLength = def.minimum; break;
-        case 'max_length': c.maxLength = def.maximum; break;
-        case 'length_equals': c.minLength = def.length; c.maxLength = def.length; break;
-        case 'min_size': c.minSize = def.minimum; break;
-        case 'max_size': c.maxSize = def.maximum; break;
-        case 'size_equals': c.minSize = def.size; c.maxSize = def.size; break;
-        case 'number_format': integer = ['safeint', 'int32', 'uint32'].includes(def.format); break;
-        case 'string_format': {
-          const spec = def as unknown as { format: string; pattern?: RegExp };
-          if (spec.format === 'regex' && spec.pattern) c.pattern = spec.pattern;
-          else c.format = normalizeFormat(spec.format);
-          break;
-        }
-      }
-    }
+    const { constraints: c, integer } = readConstraints(definition);
     switch (definition.type) {
       case 'string': output = shape.string(c); break;
       case 'number': output = integer ? shape.integer(c) : shape.number(c); break;
@@ -62,28 +52,29 @@ export function fromZod<S extends core.$ZodType>(source: S): Shape<core.output<S
       case 'lazy': output = shape.lazy(() => visit(definition.getter())); break;
       case 'optional': output = shape.optional(visit(definition.innerType)); break;
       case 'nullable': output = shape.nullable(visit(definition.innerType)); break;
-      case 'default': case 'prefault':
-        output = Object.freeze({ ...visit(definition.innerType), defaultFactory: () => core.parse(source, undefined) }); break;
+      case 'default': case 'prefault': {
+        const described = visit(definition.innerType);
+        const inner = mode === 'input' ? shape.optional(described) : ['optional', 'transform'].includes(described.kind)
+          ? shape.transform(inputReader!(definition.innerType), value => parseZod(source, value)) : described;
+        output = Object.freeze({ ...inner, defaultFactory: () => mode === 'output' ? parseZod(source, undefined) : definition.type === 'prefault' ? definition.defaultValue : undefined }); break;
+      }
       case 'catch': case 'nonoptional': output = visit(definition.innerType); break;
-      case 'readonly': output = shape.transform(visit(definition.innerType), value => typeof value === 'object' && value !== null ? Object.freeze(value) : value); break;
+      case 'readonly': output = mode === 'input' ? visit(definition.innerType) : shape.transform(visit(definition.innerType), value => typeof value === 'object' && value !== null ? Object.freeze(value) : value); break;
       case 'intersection': {
         const left = visit(definition.left), right = visit(definition.right);
         if (left.kind !== 'object' || right.kind !== 'object') throw new GenerationError('CONFIGURATION', 'Non-object Zod intersections require a provider');
         output = shape.object({ ...left.fields, ...right.fields }); break;
       }
-      case 'pipe': output = shape.transform(visit(definition.in), value => core.parse(source, value)); break;
+      case 'pipe': output = mode === 'input' ? visit(definition.in) : shape.transform(inputReader!(definition.in), value => parseZod(source, value)); break;
       default: output = shape.custom(); break;
     }
-    if (definition.type !== 'pipe' && definition.type !== 'readonly') output = Object.freeze({ ...output, validate: (value: unknown) => {
-      const result = core.safeParse(source, value);
-      return result.success ? [] : result.error.issues.map(issue => issue.message);
-    } });
+    if (mode === 'output' && definition.checks?.some(check => check._zod.def.check === 'overwrite')) {
+      output = shape.transform(inputReader!(source), value => parseZod(source, value));
+    }
+    const validator = mode === 'input' ? source : outputSchema(source);
+    output = Object.freeze({ ...output, validate: (value: unknown) => zodIssues(validator, value) });
     output = annotate(constrain(output, c), core.globalRegistry.get(source) as Record<string, unknown> ?? {});
     cache.set(source, output); return output;
   };
-  return visit(source) as Shape<core.output<S>>;
-}
-function normalizeFormat(format: string): string {
-  const names: Record<string, string> = { datetime: 'date-time', guid: 'uuid', int32: '', safeint: '', float64: '', float32: '' };
-  return names[format] ?? format;
+  return visit;
 }
