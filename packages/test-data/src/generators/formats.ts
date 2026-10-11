@@ -36,8 +36,9 @@ export function temporal(kind: TemporalKind, options: Parameters<typeof date>[0]
 }
 export function formatGenerator(format: string): Generator<string> | undefined {
   const known: Record<string, () => Generator<string>> = { email, uuid, url, uri: url, ipv4,
+    ipv6: () => generator(c => Array.from({ length: 8 }, () => c.random.int(0, 65535).toString(16)).join(':')),
     'credit-card': creditCard, luhn: () => checksum('luhn'), mod10: () => checksum('mod10'), mod11: () => checksum('mod11'),
-    date: () => temporal('localDate'), 'date-time': () => temporal('instant'), time: () => temporal('offsetTime'),
+    date: () => temporal('localDate'), 'date-time': () => temporal('instant'), time: () => temporal('offsetTime'), 'local-time': () => temporal('localTime'),
     duration: () => temporal('duration'), currency };
   if (known[format]) return known[format]();
   const id = IDENTIFIER_KINDS.find(id => id.toLowerCase() === format.toLowerCase());

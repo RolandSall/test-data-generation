@@ -8,6 +8,8 @@ export interface RunOptions<Model = unknown> {
   now?: Date | string;
   case?: string;
   fields?: Fields<Model>;
+  /** Full generation is the default. Use OnlyProvidedOptions on a generation call to opt out. */
+  onlyProvided?: false;
   check?: 'none' | 'schema';
   strict?: boolean;
   maxDepth?: number;
@@ -16,6 +18,7 @@ export interface RunOptions<Model = unknown> {
   cycle?: 'omit' | 'null' | 'reference' | 'error';
   nullProbability?: number;
   optionalProbability?: number;
+  schemaDefaults?: 'generate' | 'preserve';
   trace?: (event: TraceEvent) => void;
   defaults?: Partial<Record<Kind, Constraints>>;
 }

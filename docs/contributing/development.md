@@ -8,6 +8,7 @@ For contributors maintaining the library. The `scripts/` directory contains repo
 | `check-docs.ts` | Checks local links, compiles TypeScript snippets, runs guide programs and runs the documented Jest/Vitest examples against the built package. | `bun run docs:check` |
 | `prepare-dual-types.ts` | Copies generated declarations into a CommonJS declaration tree so both ESM and CommonJS imports have the right types. | Runs inside `bun run build` |
 | `verify-package.ts` | Packs the library, checks every export and the payload, installs it into temporary consumers, and verifies ESM/CommonJS, optional adapters and runner replay reports. Temporary consumers are removed afterward. | `bun run pack:check` |
+| `check-peer-compatibility.ts` | Checks optional peers in isolated installed consumers; Zod cells also compile and run all regression files using Zod. | `bun run compatibility:check` after building |
 | `verify-release.ts` | Checks the version, repository metadata in CI, clean Git checkout and availability of that version on npm. It does not publish. | `bun run release:check` |
 
 ## Everyday commands
@@ -31,10 +32,20 @@ bun run verify
 
 The root README is the source for the npm README. Run `bun run docs:sync` after editing it. The generated copy rewrites documentation links to repository URLs.
 
-Keep package usage in `docs/` and contributor material in `docs/contributing/`. The documentation checker visits both directories, the root README, `CONTRIBUTING.md`, all example READMEs and the playground README. It validates links, compiles TypeScript snippets, executes guide examples and runs the documented Jest/Vitest tests. Temporary files are removed afterward.
+Keep package usage in `docs/` and contributor material in `docs/contributing/`. The documentation checker visits both directories, the root README, `CONTRIBUTING.md`, all example READMEs and all playground READMEs. It validates links, compiles TypeScript snippets, executes guide examples and runs the documented Jest/Vitest tests. Temporary files are removed afterward.
+
+For a self-contained example such as the quick start, mark its fence `ts file=quick-start.ts standalone`. The checker compiles and runs that snippet as a separate module. Ordinary TypeScript blocks in a guide run together in reading order.
 
 User examples should import public package entry points. The [playground guide](../playground.md) describes the runnable demos; its assertions are included in `verify`.
 
 ## Package boundaries
 
 The root workspace and `examples/*` packages are private. Only `packages/test-data` is published, with a `files` allowlist of `dist`, `README.md` and `LICENSE` (npm also includes the manifest). Examples and the playground are outside that package and are never imported by library source. The package checker additionally rejects any tarball path containing an `examples` or `playground` directory.
+
+## Optional-peer compatibility checks
+
+Build first, then run `bun run compatibility:check` to test minimum and current pinned peer versions in isolated packed consumers. To run one matrix cell, use `bun scripts/check-peer-compatibility.ts zod minimum`. The script removes temporary consumers afterward and requires npm/network access. CI runs the same five-peer/two-target matrix independently of the main verification job; current versions come from the workspace manifest. Update the [compatibility table](../compatibility.md) with version changes. This check compiles public declarations without skipping dependency checks, exercises the optional adapter, and uses real runners for Jest/Vitest. Core-only installation is checked by `pack:check`.
+
+Zod additionally tests 4.3.6 with `bun scripts/check-peer-compatibility.ts zod 4.3`; running `bun scripts/check-peer-compatibility.ts zod` checks all three Zod cells. Each copies every library test file importing Zod or using `fromZod()` into the consumer, rewrites library imports to public package entry points, compiles the tests and executes them against that consumer's installed Zod. New Zod regression files are included automatically; private source imports fail explicitly rather than silently testing the workspace build. `scripts/compatibility/zod-regressions.ts` owns this preparation. These checks use normal peer resolution and are excluded from npm packaging.
+
+The [feedback implementation review](feedback-review.md) records the original gaps, changes, compatibility and focused regression coverage.

@@ -1,4 +1,3 @@
-import type { Seed } from './random.js';
 import type { Infer, Shape } from './shape.js';
 import { clone, isPlain } from './path.js';
 import { deriveContext } from './instructions/derive.js';
@@ -8,9 +7,13 @@ import type { DeepPartial } from './types/partial-values.js';
 import type { RunOptions, RecipeConfig, ResolvedConfig, FixtureOverrides, GenerationResult } from './recipe/contracts.js';
 import { registerFixture } from './fixture-identity.js';
 import { Engine } from './engine.js';
+import type { OnlyProvidedOptions } from './recipe/only-provided-options.js';
+import type { OnlyProvidedOverrides } from './recipe/only-provided-overrides.js';
+import type { FixtureSession } from './recipe/fixture-session.js';
+import { selectionOptions, selectionOverrides } from './recipe/selection-options.js';
 import { GenerationError } from './error.js';
 
-export type { RunOptions, RecipeConfig, ResolvedConfig, FixtureOverrides, GenerationResult, Provider, TraceEvent } from './recipe/contracts.js';
+export type { RunOptions, RecipeConfig, ResolvedConfig, FixtureOverrides, GenerationResult, Provider, TraceEvent, OnlyProvidedOptions, OnlyProvidedOverrides, FixtureSession } from './recipe/contracts.js';
 export type { DeepPartial } from './types/partial-values.js';
 export { isFixture } from './fixture-identity.js';
 export { defaultSeed } from './random.js';
@@ -25,7 +28,7 @@ export class Fixture<T> {
     Object.freeze(this);
   }
   extend(config: RecipeConfig<T>): Fixture<T> { return new Fixture(this.shape, mergeConfig(this.config, config)); }
-  private selectedConfig(options: RunOptions<T>): Readonly<RecipeConfig<T>> {
+  private selectedConfig(options: RunOptions<T> | OnlyProvidedOptions<T>): Readonly<RecipeConfig<T>> {
     let config = this.config;
     if (options.case) {
       const selected = config.cases?.[options.case];
@@ -34,25 +37,41 @@ export class Fixture<T> {
     }
     return config;
   }
-  private executionOptions(options: RunOptions<T>): RunOptions<T> { return { ...this.selectedConfig(options).options, ...options }; }
-  resolve(options: RunOptions<T> = {}): ResolvedConfig<T> {
+  private executionOptions(options: RunOptions<T> | OnlyProvidedOptions<T>): RunOptions<T> { return { ...this.selectedConfig(options).options, ...selectionOptions(options).runOptions }; }
+  resolve(options: RunOptions<T> | OnlyProvidedOptions<T> = {}): ResolvedConfig<T> {
     const config = this.selectedConfig(options);
     const computed = typeof config.computed === 'function' ? config.computed(deriveContext<T>()) : config.computed;
     return { ...config, identity: this, fields: mergeFields(config.fields, options.fields) as Fields<T>, computed: computed as Record<string, Derived<unknown>> ?? {} };
   }
-  one(options: RunOptions<T> = {}): T { return this.result(options).value; }
-  result(options: RunOptions<T> = {}): GenerationResult<T> {
+  one(options: OnlyProvidedOptions<T>): DeepPartial<T>;
+  one(options?: RunOptions<T>): T;
+  one(options: RunOptions<T> | OnlyProvidedOptions<T>): T | DeepPartial<T>;
+  one(options: RunOptions<T> | OnlyProvidedOptions<T> = {}): T | DeepPartial<T> { return this.generateResult(options).value; }
+  result(options: OnlyProvidedOptions<T>): GenerationResult<DeepPartial<T>>;
+  result(options?: RunOptions<T>): GenerationResult<T>;
+  result(options: RunOptions<T> | OnlyProvidedOptions<T>): GenerationResult<T | DeepPartial<T>>;
+  result(options: RunOptions<T> | OnlyProvidedOptions<T> = {}): GenerationResult<T | DeepPartial<T>> { return this.generateResult(options); }
+  private generateResult(options: RunOptions<T> | OnlyProvidedOptions<T>): GenerationResult<T> {
     const run = new Engine(this.executionOptions(options));
-    return { value: run.make(this, options), seed: run.seed, now: run.now.toISOString() };
+    const selected = selectionOptions(options);
+    return { value: run.make(this, selected.runOptions, 0, undefined, selected.mode), seed: run.seed, now: run.now.toISOString() };
   }
-  many(count: number, options: RunOptions<T> = {}): T[] {
+  many(count: number, options: OnlyProvidedOptions<T>): DeepPartial<T>[];
+  many(count: number, options?: RunOptions<T>): T[];
+  many(count: number, options: RunOptions<T> | OnlyProvidedOptions<T>): (T | DeepPartial<T>)[];
+  many(count: number, options: RunOptions<T> | OnlyProvidedOptions<T> = {}): (T | DeepPartial<T>)[] {
     if (!Number.isSafeInteger(count) || count < 0) throw new GenerationError('CONFIGURATION', 'Count must be a nonnegative safe integer');
     const run = new Engine(this.executionOptions(options));
-    return Array.from({ length: count }, (_, i) => run.make(this, options, i));
+    const selected = selectionOptions(options);
+    return Array.from({ length: count }, (_, i) => run.make(this, selected.runOptions, i, undefined, selected.mode));
   }
-  *stream(options: RunOptions<T> = {}): IterableIterator<T> {
+  stream(options: OnlyProvidedOptions<T>): IterableIterator<DeepPartial<T>>;
+  stream(options?: RunOptions<T>): IterableIterator<T>;
+  stream(options: RunOptions<T> | OnlyProvidedOptions<T>): IterableIterator<T | DeepPartial<T>>;
+  *stream(options: RunOptions<T> | OnlyProvidedOptions<T> = {}): IterableIterator<T | DeepPartial<T>> {
     const run = new Engine(this.executionOptions(options));
-    for (let index = 0; ; index++) yield run.make(this, options, index);
+    const selected = selectionOptions(options);
+    for (let index = 0; ; index++) yield run.make(this, selected.runOptions, index, undefined, selected.mode);
   }
   blank(options: RunOptions<T> = {}): DeepPartial<T> { return new Engine(this.executionOptions(options)).make(this, options, 0, undefined, 'blank') as DeepPartial<T>; }
   fill(existing: DeepPartial<T>, options: RunOptions<T> & { mode?: 'missing' | 'nullish' | 'rules' } = {}): T {
@@ -72,17 +91,19 @@ export class Fixture<T> {
   }
 }
 export function defineFixture<S extends Shape>(input: S, config: RecipeConfig<Infer<S>> = {}): Fixture<Infer<S>> { return new Fixture<Infer<S>>(input as Shape<Infer<S>>, config); }
-export function fixtureRun(options: RunOptions = {}): {
-  make<T>(fixture: Fixture<T>, overrides?: FixtureOverrides<T>): T;
-  makeMany<T>(fixture: Fixture<T>, count: number, overrides?: FixtureOverrides<T>): T[];
-  readonly seed: Seed; readonly now: Date;
-} {
+export function fixtureRun(options: RunOptions = {}): FixtureSession {
   const engine = new Engine(options);
-  const checkOverrides = (overrides: object) => {
-    for (const key of Object.keys(overrides)) if (!['case', 'fields', 'check', 'strict'].includes(key)) throw new GenerationError('CONFIGURATION', `Session option ${key} belongs on fixtureRun()`);
+  return { seed: engine.seed, now: new Date(engine.now),
+    make: <T>(fixture: Fixture<T>, overrides: FixtureOverrides<T> | OnlyProvidedOverrides<T> = {}): T => {
+      const selected = selectionOverrides(overrides);
+      return engine.make(fixture, selected.runOptions, 0, undefined, selected.mode);
+    },
+    makeMany: <T>(fixture: Fixture<T>, count: number, overrides: FixtureOverrides<T> | OnlyProvidedOverrides<T> = {}): T[] => {
+      const selected = selectionOverrides(overrides);
+      if (!Number.isSafeInteger(count) || count < 0) throw new RangeError('Invalid count');
+      return Array.from({ length: count }, (_, i) => engine.make(fixture, selected.runOptions, i, undefined, selected.mode));
+    },
   };
-  return { seed: engine.seed, now: new Date(engine.now), make: (fixture, overrides = {}) => { checkOverrides(overrides); return engine.make(fixture, overrides); },
-    makeMany: (fixture, count, overrides = {}) => { checkOverrides(overrides); if (!Number.isSafeInteger(count) || count < 0) throw new RangeError('Invalid count'); return Array.from({ length: count }, (_, i) => engine.make(fixture, overrides, i)); } };
 }
 function freezeConfig<T>(config: RecipeConfig<T>): Readonly<RecipeConfig<T>> {
   return Object.freeze({ ...config,

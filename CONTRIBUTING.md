@@ -19,6 +19,21 @@ Open a pull request for changes to `main`. All files are owned by `@RolandSall`,
 
 Only the `RolandSall` account is allowed to bypass the main ruleset, including direct pushes and merging its own pull requests without another reviewer.
 
+## Commit messages
+
+Use Conventional Commits: `type: short summary` or `type(scope): short summary`. Use the same format for pull request titles so squash merges retain the convention.
+
+| Type | Purpose | Example |
+| --- | --- | --- |
+| `feat` | Add user-facing functionality | `feat: add property selectors` |
+| `fix` | Correct a bug | `fix(selectors): reject unknown fields` |
+| `refactor` | Restructure code without changing behavior | `refactor: extract rule matching` |
+| `chore` | Maintain tooling or dependencies | `chore: update build dependencies` |
+| `docs` | Change documentation | `docs: clarify fields and rules` |
+| `test` | Add or improve tests | `test: cover inherited properties` |
+
+Keep summaries specific and concise.
+
 ## Contributor guides
 
 | Guide | Purpose |

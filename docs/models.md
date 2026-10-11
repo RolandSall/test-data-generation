@@ -17,7 +17,7 @@ Start with explicit shapes. The optional `/typescript` entry reads existing decl
 ## Typed shapes
 
 ```ts
-import { defineFixture, shape, type Infer, fromJsonSchema, fromColumns } from '@integration-testing/test-data-generation';
+import { defineFixture, shape, type Infer, fromJsonSchema, fromColumns, select } from '@integration-testing/test-data-generation';
 
 const ProductShape = shape.object({
   sku: shape.string({ pattern: /^SKU-\d{4}$/ }),
@@ -63,6 +63,18 @@ const extracted = extractedOrders.one({ seed: 42 });
 
 The adapter supports resolved generics, inheritance, unions, recursive types and supported collections. Pass `{ tsconfig: './tsconfig.json' }` as the third argument when needed. Extraction requires the source files and compiler peer. It returns runtime shapes, without installing a transformer or automatically generating source files. A generic annotation supplies a return type; it does not independently prove that the named declaration has the same structure. Methods, `any`/`unknown`/`never`, and unbound type parameters need explicit shapes/providers.
 
+### Branded primitives
+
+The compiler adapter recognizes string/number intersections whose additional members are required, readonly unique-symbol properties with string or number literal markers. It generates the underlying primitive, including in nested objects and collections; `describeType<YourModel>()` retains your declared branded output type. A brand does not imply numeric bounds, uniqueness or domain validation. Primitive literals retain their literal constraint.
+
+```ts
+// In your model source file:
+declare const brand: unique symbol;
+type Identifier = number & { readonly [brand]: 'Identifier' };
+```
+
+String-key brands, mutable/optional markers and arbitrary intersections with additional requirements require explicit shapes/providers. They are rejected rather than silently reduced to a primitive. As with all compiler extraction, the generic annotation must match the declaration you ask to read.
+
 ## Real class instances
 
 A typed transformation can call your constructor with generated arguments:
@@ -78,9 +90,55 @@ const invoice = invoices.one({ seed: 42 });
 if (!(invoice instanceof Invoice)) throw new Error('Expected a real instance');
 ```
 
+Selectors can refer to the actual class members:
+
+```ts
+const invoiceSelectors = select(invoices.shape);
+const fixedInvoices = invoices.extend({ rules: [
+  invoiceSelectors.field(invoice => invoice.total).use(100),
+] });
+const fixedInvoice = fixedInvoices.one({ seed: 42 });
+```
+
+The callback is typed as `Invoice`. An IDE rename of `Invoice.total` can update this member access. Your runtime input shape must also describe the renamed field; arbitrary constructor transformations are not automatically mapped. Static access such as `Invoice.total` is not an instance-field reference in TypeScript.
+
 For initialized fields and registered setters, use [class factories](graphs.md#class-factories-and-setters). Compiler extraction alone produces a plain object. Passing a bare constructor does not infer its declared property types.
 
+## Inheritance and polymorphism
+
+`extends` gives a class runtime inheritance. `implements` checks that a class satisfies a TypeScript contract; it does not create fields, constructors or a prototype relationship. The generator needs runtime shapes for inherited and concrete fields, plus a factory to construct real instances.
+
+```ts
+abstract class Animal {
+  constructor(readonly name: string, readonly active: boolean) {}
+  abstract speak(): string;
+}
+class Dog extends Animal {
+  constructor(name: string, active: boolean, readonly trained: boolean) { super(name, active); }
+  override speak(): string { return 'Woof!'; }
+}
+class Cat extends Animal {
+  override speak(): string { return 'Meow!'; }
+}
+const animalFields = { name: shape.string(), active: shape.boolean() };
+const DogInput = shape.object({ ...animalFields, trained: shape.boolean() });
+const DogShape = shape.transform(DogInput, data => new Dog(data.name, data.active, data.trained));
+const CatShape = shape.transform(shape.object(animalFields), data => new Cat(data.name, data.active));
+const animals = defineFixture(shape.array(shape.union([DogShape, CatShape])));
+const pets = animals.one({ seed: 42 });
+for (const pet of pets) {
+  if (!(pet instanceof Animal)) throw new Error('Expected inherited prototype');
+  pet.speak(); // Dispatches to the selected subclass implementation.
+}
+```
+
+The union samples the concrete shapes you register; it does not discover subclasses or construct an abstract class. A concrete shape forces that subtype. Constructors and `super()` run normally, including your invariant checks. Compiler extraction includes inherited data fields but still generates plain objects; declarations with methods require an explicit class factory or provider.
+
+The [inheritance playground](../playground/inheritance/README.md) demonstrates an implemented contract, inherited fields/methods, overridden behavior, both subtypes in a nested collection, a forced subtype, typed selectors and missing-field errors. Each class and exported interface has its own file.
+
 ## Zod
+
+The optional adapter supports Zod **4.3+ within v4**. See the [compatibility matrix](compatibility.md) for exact versions covered by CI.
 
 ```sh
 npm install zod
@@ -96,7 +154,25 @@ const user = users.one({ seed: 42, check: 'schema' });
 UserSchema.parse(user);
 ```
 
-Supported containers, recognized constraints, lazy types, unions, readonly objects, object intersections, refinements and synchronous transformations are supported. Arbitrary refinements use bounded retries. Custom schemas need providers, variadic tuples need explicit recipes, and async effects need application-owned preparation. Supported formats are listed in [generators](generators.md#formats-and-checksums).
+`fromZod(schema)` generates parsed output. `fromZod(schema, { mode: 'input' })` generates raw values accepted by the schema. Both retain the corresponding Zod type. Nested transformations and pipelines are supported; generated parsed children are validated as output rather than passed back into an input parser.
+
+```ts file=zod-modes.ts standalone
+import { defineFixture } from '@integration-testing/test-data-generation';
+import { fromZod } from '@integration-testing/test-data-generation/zod';
+import { z } from 'zod';
+const schema = z.object({ amount: z.literal('42').transform(Number) });
+const output = defineFixture(fromZod(schema)).one({ seed: 42, check: 'schema' });
+// { amount: 42 }; inferred as z.output<typeof schema>.
+const input = defineFixture(fromZod(schema, { mode: 'input' })).one({ seed: 42, check: 'schema' });
+// { amount: '42' }; inferred as z.input<typeof schema>.
+const parsed = schema.parse(input);
+```
+
+Overrides/generators supply values in the selected mode: output values in output mode, raw values in input mode. Pipeline input constraints guide generation; output checks and refinements can reject candidates within `maxAttempts`. Failures retain the failing path and validation message and explain how to supply a field generator/provider. Known formats include email, UUID, URL, IPv4, IPv6 and ISO date/time/datetime; unsupported formats fail explicitly and need a generator/provider.
+
+`schemaDefaults: 'preserve'` in output mode returns the declared output default or parsed prefault. In input mode, a default is represented by undefined/absence so the caller's parser can apply it; a prefault supplies its raw fallback. See [schema policies](configuration.md#schema-defaults-and-optional-properties).
+
+Supported containers, recognized constraints, lazy types, unions, readonly objects, object intersections, refinements and synchronous transformations are supported. Arbitrary refinements use bounded retries, not automatic solving. Validation can execute schema callbacks; keep those callbacks deterministic and free of external side effects. Arbitrary transformations cannot be reversed, and their output structure is not inferred for selectors; target the described generation-input fields or supply the complete transformed value. An explicit output override of an arbitrary transform has no inferred output validator unless the pipeline declares one. Custom schemas and unrepresentable preprocess inputs need providers, variadic tuples need explicit recipes, and async effects need caller-owned preparation. See the runnable [schema playground](../playground/schema-policies/README.md).
 
 ## JSON Schema
 

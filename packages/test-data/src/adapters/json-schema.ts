@@ -71,6 +71,7 @@ export function fromJsonSchema<T = unknown>(document: JsonSchema): Shape<T> {
       }
       output = constrain(output, c);
     }
+    if (Object.hasOwn(schema, 'default')) output = Object.freeze({ ...output, defaultValue: schema.default });
     cache.set(schema, output); return output;
   };
   return visit(document) as Shape<T>;

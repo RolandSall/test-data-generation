@@ -3,8 +3,30 @@ import { orders } from './recipes/orders.js';
 import { contactsFromCsv } from './recipes/contacts.js';
 import { accounts } from './recipes/accounts.js';
 import { runOptions } from './run-options.js';
+import { inheritanceDemo, polymorphismDemo, unknownFieldsDemo } from './inheritance/scenarios.js';
+import { propertyOrders } from './recipes/property-selectors.js';
+import { Customer } from './models/customer.js';
+import { quickStartPeople } from './recipes/quick-start.js';
+import { automaticPeople, peopleUsingBoth, peopleUsingFields, peopleUsingRules } from './customization/fixtures.js';
+
+import { defaultsDemo } from './schema-policies/defaults.js';
+
+import { modesDemo } from './schema-policies/modes.js';
+
+import { selectiveDemo } from './schema-policies/selective.js';
+
+import { replayDemo } from './schema-policies/replay.js';
 
 const demos = {
+  replay: replayDemo,
+  selective: selectiveDemo,
+  'schema-modes': modesDemo,
+  defaults: defaultsDemo,
+  'quick-start': () => quickStartPeople.one(runOptions),
+  'fields-only': () => peopleUsingFields.one(runOptions),
+  'rules-only': () => peopleUsingRules.one(runOptions),
+  combined: () => peopleUsingBoth.one(runOptions),
+  automatic: () => automaticPeople.one(runOptions),
   orders: () => orders.one(runOptions),
   cancelled: () => orders.one({ ...runOptions, case: 'cancelled' }),
   batch: () => orders.many(3, runOptions),
@@ -15,6 +37,13 @@ const demos = {
     return [run.make(tickets), run.make(tickets), run.make(tickets)];
   },
   zod: () => accounts.one(runOptions),
+  inheritance: inheritanceDemo,
+  polymorphism: polymorphismDemo,
+  'unknown-fields': unknownFieldsDemo,
+  'property-selectors': () => {
+    const order = propertyOrders.one(runOptions);
+    return { order, customerIsInstanceOfCustomer: order.customer instanceof Customer, greeting: order.customer.greet() };
+  },
 };
 
 const selected = process.argv[2];

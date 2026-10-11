@@ -20,7 +20,8 @@ afterEach(async () => {
   await Promise.all(directories.splice(0).map(directory => rm(directory, { recursive: true, force: true })));
 });
 
-describe('compiler conversion boundaries', () => {
+// Full compiler programs can exceed the default five seconds under CI coverage.
+describe('compiler conversion boundaries', { timeout: 15_000 }, () => {
   test('literal/scalar precedence and built-in collections produce compatible values', async () => {
     const path = await sourceFile(`
       interface Buffer { readonly length: number }

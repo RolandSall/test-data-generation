@@ -6,6 +6,45 @@
 
 Requires Node.js 22.22+. ESM and CommonJS are supported; integrations are optional. The package is prepared for npm publication. The npm command below applies after the first publication.
 
+## Quick start
+
+```sh
+npm install @integration-testing/test-data-generation
+```
+
+Create a typed Person, customize its name, and generate the remaining properties:
+
+```ts file=quick-start.ts standalone
+import { defineFixture, select, shape } from '@integration-testing/test-data-generation';
+
+const PersonShape = shape.object({
+  name: shape.string(),
+  age: shape.integer({ min: 18, max: 65 }),
+  active: shape.boolean(),
+});
+const selectors = select(PersonShape);
+const people = defineFixture(PersonShape, {
+  rules: [selectors.field(person => person.name).use('Ada')],
+});
+
+const person = people.one({ seed: 42 });
+console.log(person);
+
+const selectedPerson = people.one({
+  seed: 42, onlyProvided: true, fields: { name: 'Ada' },
+});
+// { name: 'Ada' }; unselected properties are absent; the type is partial.
+
+```
+
+Output with seed `42`:
+
+```text
+{ name: 'Ada', age: 30, active: true }
+```
+
+`person` is inferred as `{ name: string; age: number; active: boolean }`. The name is fixed; age and active status generate automatically. This example uses only `rules`; `fields` is optional. Full generation is the default, including when you override some fields. `onlyProvided: true` selects only properties in the merged `fields` tree and returns a partial type. Omit the customization to generate every property, or use `people.many(3, { seed: 42 })` for a batch.
+
 ## Find your use case
 
 | I want to… | Start here |
@@ -13,6 +52,9 @@ Requires Node.js 22.22+. ESM and CommonJS are supported; integrations are option
 | Create an object or batch | [Quick start](#quick-start) |
 | Use an existing interface, class, or Zod schema | [Models and adapters](https://github.com/RolandSall/test-data-generation/blob/main/docs/models.md) |
 | Customize a field or nested field | [Field overrides](https://github.com/RolandSall/test-data-generation/blob/main/docs/recipes.md#customize-individual-and-nested-fields) |
+| Choose direct overrides or selector rules | [Fields or rules](#choose-fields-or-rules) |
+| Select fields and scalar types with compiler checks | [Typed selectors](https://github.com/RolandSall/test-data-generation/blob/main/docs/recipes.md#typed-selectors) |
+| Generate inherited classes and polymorphic collections | [Inheritance](https://github.com/RolandSall/test-data-generation/blob/main/docs/models.md#inheritance-and-polymorphism) |
 | Target every boolean under an object | [Type rules](https://github.com/RolandSall/test-data-generation/blob/main/docs/recipes.md#match-types-throughout-a-subtree) |
 | Derive values and define reusable scenarios | [Recipes](https://github.com/RolandSall/test-data-generation/blob/main/docs/recipes.md) |
 | Control collections, references, ownership, or existing objects | [Object graphs](https://github.com/RolandSall/test-data-generation/blob/main/docs/graphs.md) |
@@ -22,15 +64,12 @@ Requires Node.js 22.22+. ESM and CommonJS are supported; integrations are option
 | Configure defaults, environment settings, or JSON files | [Configuration](https://github.com/RolandSall/test-data-generation/blob/main/docs/configuration.md) |
 | Understand precedence, limits, or errors | [API behavior and troubleshooting](https://github.com/RolandSall/test-data-generation/blob/main/docs/usage.md) |
 | Try runnable examples | [Playground](https://github.com/RolandSall/test-data-generation/blob/main/docs/playground.md) |
+| Compare fields-only, rules-only, both and neither | [Customization playground](https://github.com/RolandSall/test-data-generation/blob/main/playground/customization/README.md) |
 | Organize classes, models and complex fixtures | [Application examples](https://github.com/RolandSall/test-data-generation/blob/main/docs/examples.md) |
 
-## Quick start
+## Reusable Order model
 
-```sh
-npm install @integration-testing/test-data-generation
-```
-
-Save this model as `models.ts`. Detailed guides reuse its exports.
+The examples below use this larger model. Save it as `models.ts` when following the detailed guides.
 
 ```ts file=models.ts
 import { defineFixture, shape, type Infer } from '@integration-testing/test-data-generation';
@@ -69,6 +108,28 @@ const replay = orders.one({ seed: 42 }); // Same values as order
 
 Interfaces disappear at runtime. Use explicit shapes or the compiler adapter to read a source declaration. Real class instances require a constructor factory; a generic type alone cannot infer fields. See [model choices](https://github.com/RolandSall/test-data-generation/blob/main/docs/models.md).
 
+## Choose fields or rules
+
+`fields` and `rules` are both optional. Use either on its own, combine them, or omit both to generate every declared field automatically. These two recipes customize the same properties:
+
+```ts
+import { select } from '@integration-testing/test-data-generation';
+
+const usingFields = defineFixture(OrderShape, {
+  fields: { status: 'pending', customer: { name: 'Ada' } },
+});
+
+const selectors = select(OrderShape);
+const usingRules = defineFixture(OrderShape, {
+  rules: [
+    selectors.field(order => order.status).use('pending'),
+    selectors.field(order => order.customer.name).use('Ada'),
+  ],
+});
+```
+
+Use `fields` for direct, typed property overrides. Use `rules` for property callbacks with autocomplete and IDE rename, or for matching many fields by scalar kind or subtree. Unspecified properties still generate. If you choose to combine both and they target the same property, its `fields` instruction takes precedence; configuring a property twice is not required. See [choosing a customization style](https://github.com/RolandSall/test-data-generation/blob/main/docs/recipes.md#choose-fields-or-rules).
+
 ## Customize fields and nested objects
 
 ```ts
@@ -88,6 +149,19 @@ const customized = customOrders.one({ seed: 42 });
 ```
 
 Unspecified fields continue to generate, including the country, preferences, and items. Overrides are checked against the output type. Use the provided RNG for replayable custom generators.
+
+## Select fields with type checking
+
+```ts
+const selectedOrders = orders.extend({ rules: [
+  selectors.field(order => order.customer.name).use('Ada'),
+  selectors.field(order => order.total).use(integer({ min: 100, max: 500 })),
+  selectors.all('boolean', { under: order => order.customer.preferences }).use(true),
+] });
+const selectedOrder = selectedOrders.one({ seed: 42 });
+```
+
+Property callbacks provide autocomplete and IDE rename support, with no dotted path string to maintain. Unknown properties and incompatible values/generators fail TypeScript checking. Paths also get checked against the runtime shape. Read [typed selectors and field errors](https://github.com/RolandSall/test-data-generation/blob/main/docs/recipes.md#typed-selectors) for details.
 
 ## Match types throughout a nested object
 
@@ -146,16 +220,20 @@ bun run examples:test
 
 Examples are excluded from the npm package.
 
+The [inheritance playground](https://github.com/RolandSall/test-data-generation/blob/main/playground/inheritance/README.md) includes real `Dog`/`Cat` subclasses, an implemented contract, polymorphic nested collections, typed selectors and unknown-field errors. Run `bun run playground inheritance` or `bun run playground polymorphism`. The [property-selector recipe](https://github.com/RolandSall/test-data-generation/blob/main/playground/recipes/property-selectors.ts) targets a real nested `Customer` class with property callbacks; run `bun run playground property-selectors`.
+
 ## Optional integrations
 
 | Import suffix | Purpose | Peer |
 | --- | --- | --- |
-| `/zod` | Generate from Zod schemas | Zod 4.6+ within v4 |
+| `/zod` | Generate from Zod schemas | Zod 4.3+ within v4 |
 | `/typescript` | Explicit compiler metadata extraction | TypeScript 5.9+ within the declared peer range |
 | `/protobuf` | Generate protobufjs messages | protobufjs 8.8+ within v8 |
 | `/node` | Files, streams, settings, explicit file writes | Built-in Node APIs |
 | `/vitest` | Isolated `data` test sessions | Vitest 4.1+ within v4; ESM |
 | `/jest` | Typed `given()` arguments | Jest 30 and `@jest/globals` |
+
+See the [compatibility matrix](https://github.com/RolandSall/test-data-generation/blob/main/docs/compatibility.md) for minimum and current peer versions verified in CI.
 
 JSON Schema and ORM-neutral column adapters are exported from the core. Only install peers for the integrations you use. [Models](https://github.com/RolandSall/test-data-generation/blob/main/docs/models.md) and [testing](https://github.com/RolandSall/test-data-generation/blob/main/docs/testing.md) provide complete examples. Generated data can be passed to Testcontainers/data-isolation tests through normal test code; database inserts and transactions remain application-owned operations.
 
@@ -166,6 +244,6 @@ const result = scenarios.result({ seed: 42, now: '2026-01-01T00:00:00Z' });
 const reproduced = scenarios.one({ seed: result.seed, now: result.now });
 ```
 
-Keep the seed, clock, recipe, options, source rows, and library version stable for replay. `one()` resets counters/cursors; `many()`, `stream()`, and `fixtureRun()` advance them. Explicit overrides can create negative fixtures; `check: 'schema'` validates the completed graph. Strict unmatched rules and impossible constraints fail with useful errors. See [execution semantics](https://github.com/RolandSall/test-data-generation/blob/main/docs/usage.md).
+Keep the seed, clock, recipe, options, generation order, source contents/order, and package/dependency versions stable for replay. Custom generators and schema callbacks must use controlled state. Independent executions do not share library-managed state or uniqueness domains; no identical-output guarantee applies across package versions. See [replay and uniqueness scope](https://github.com/RolandSall/test-data-generation/blob/main/docs/compatibility.md). `one()` resets counters/cursors; `many()`, `stream()`, and `fixtureRun()` advance them. Explicit overrides can create negative fixtures; `check: 'schema'` validates the completed graph. Strict unmatched rules and impossible constraints fail with useful errors. See [execution semantics](https://github.com/RolandSall/test-data-generation/blob/main/docs/usage.md).
 
 Read the [user guides](https://github.com/RolandSall/test-data-generation/blob/main/docs/README.md) for complete examples or [features and limitations](https://github.com/RolandSall/test-data-generation/blob/main/docs/capabilities.md) for a supported-feature overview. MIT licensed.

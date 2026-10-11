@@ -2,7 +2,7 @@
 
 ## Per-run options and kind defaults
 
-Reuse the [Order model](../README.md#quick-start).
+Reuse the [Order model](../README.md#reusable-order-model).
 
 ```ts
 import { resolveSettings, parseSettings, fixtureRun } from '@integration-testing/test-data-generation';
@@ -15,6 +15,27 @@ const configured = orders.one({
 ```
 
 Defaults apply across graphs; explicit shape constraints take precedence. Fields/cases/rules/providers belong in recipes. Sessions own seed/clock/budgets/defaults; `make()` accepts fields/case/check/strictness.
+
+## Schema defaults and optional properties
+
+Normal generation creates values and populates optional properties. `schemaDefaults: 'preserve'` opts into declared Zod or JSON Schema defaults; it is separate from the `defaults` setting, which configures generation constraints by kind.
+
+```ts file=schema-policies.ts standalone
+import { defineFixture } from '@integration-testing/test-data-generation';
+import { fromZod } from '@integration-testing/test-data-generation/zod';
+import { z } from 'zod';
+const accounts = defineFixture(fromZod(z.object({
+  status: z.string().default('pending'),
+  nickname: z.string().optional(),
+})));
+const generated = accounts.one({ seed: 42 }); // Both properties generate.
+const declared = accounts.one({ seed: 42, schemaDefaults: 'preserve', optionalProbability: 1 });
+// { status: 'pending' }; nickname is absent.
+```
+
+`optionalProbability: 0` always populates optional fields; `1` omits them; intermediate values exercise both cases. Explicit field values/generators and matching providers take precedence over schema defaults. An optional wrapper can still omit its inner default when omission is requested. Supplied `null`, `false`, zero, empty strings and empty arrays/maps/sets are preserved. `fill()` preserves initialized values; `mode: 'nullish'` additionally replaces null.
+
+Zod defaults supply output values; prefaults pass their input fallback through parsing. Default factories execute only when preservation is requested and that default is needed. Mutable defaults are copied. Factories using external state, randomness or time must be controlled separately for replay. The policy does not preserve database defaults or infer defaults from TypeScript declarations.
 
 ## Explicit configuration layers
 
@@ -77,6 +98,7 @@ Unknown settings fail. JSON regexes are source strings; bigint bounds are decima
 | `now` | Execution creation time | Relative dates |
 | `strict` | `true` | Fail unused rules/completion |
 | `check` | `none` | Final schema check |
+| `schemaDefaults` | `generate` | Generate values or preserve declared schema defaults |
 | `maxDepth` | 8 | Recursion depth |
 | `maxAttempts` | 100 | Retry budget |
 | `maxNodes` | 100000 | Graph size |

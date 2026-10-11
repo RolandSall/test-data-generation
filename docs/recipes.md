@@ -1,11 +1,60 @@
 # Recipes and customization
 
-These examples reuse the [README's Order model](../README.md#quick-start). Keep this setup when running the snippets together.
+These examples reuse the [README's Order model](../README.md#reusable-order-model). Keep this setup when running the snippets together.
 
 ```ts
-import { defineFixture, shape, generator, boolean, integer, oneOf, uuid, annotate } from '@integration-testing/test-data-generation';
+import { defineFixture, shape, generator, boolean, integer, oneOf, uuid, annotate, select } from '@integration-testing/test-data-generation';
 import { OrderShape, orders } from './models.js';
 ```
+
+## Choose fields or rules
+
+You do not need both. `fields` and `rules` are optional, independent customization styles. Start with either, or supply neither for automatic generation:
+
+| Style | Use it for |
+| --- | --- |
+| Only `fields` | Direct values, generators and partial nested field trees |
+| Only `rules` | Property callbacks with IDE rename support, or matching multiple fields by kind/scope |
+| Both | General matching rules plus explicit overrides for selected properties |
+| Neither | Generate every declared field using the shape and default settings |
+
+For the same two properties, these recipes are equivalent customizations:
+
+```ts
+const fieldsOnly = defineFixture(OrderShape, {
+  fields: { status: 'pending', customer: { name: 'Ada' } },
+});
+
+const selectors = select(OrderShape);
+const rulesOnly = defineFixture(OrderShape, {
+  rules: [
+    selectors.field(order => order.status).use('pending'),
+    selectors.field(order => order.customer.name).use('Ada'),
+  ],
+});
+const fromFields = fieldsOnly.one({ seed: 42 });
+const fromRules = rulesOnly.one({ seed: 42 });
+if (fromFields.status !== fromRules.status || fromFields.customer.name !== fromRules.customer.name) {
+  throw new Error('Expected the same customized properties');
+}
+```
+
+Both generate all the other declared fields normally. Each style accepts typed custom generators; choose the selector form when property references and IDE rename are your priority. Here `selectors` is the result of `select(OrderShape)`; the configuration property `fields` contains direct overrides.
+
+Precedence matters only when you combine styles. For example, you can set every generated boolean in a subtree to `true` with a rule, then explicitly set one to `false`:
+
+```ts
+const combinedStyles = defineFixture(OrderShape, {
+  rules: [selectors.all('boolean', { under: order => order.customer.preferences }).use(true)],
+  fields: { customer: { preferences: { sms: false } } },
+});
+const combinedOrder = combinedStyles.one({ seed: 42 });
+if (combinedOrder.customer.preferences.sms !== false || combinedOrder.customer.preferences.email !== true) {
+  throw new Error('Expected the explicit override to take precedence');
+}
+```
+
+`fields` takes precedence for `sms`; the rule still applies to the other booleans. You never need to specify the same property in both places. This precedence resolves generation instructions; rule filters/uniqueness checks and opt-in schema validation can still reject an overridden value.
 
 ## Customize individual and nested fields
 
@@ -20,6 +69,34 @@ const customOrder = custom.one({ seed: 42 });
 ```
 
 `fields` accepts literal values, generators, nested field trees, and nested recipes. A property tree partially configures an object: country, preferences and items still generate. Unknown fields and mismatched instruction types fail type checking. Use `value(object)` for complete replacement; see [ownership](graphs.md#ownership-and-existing-values).
+
+## Typed selectors
+
+Bind selectors to a runtime shape. Property callbacks refer to your model properties directly, so autocomplete and IDE rename work without maintaining dotted string literals. Property names, replacement values and generator outputs are checked by TypeScript:
+
+```ts
+const orderSelectors = select(OrderShape);
+const selectedOrders = orders.extend({ rules: [
+  orderSelectors.field(order => order.customer.address.city).use('Paris'),
+  orderSelectors.field(order => order.total).use(integer({ min: 100, max: 500 })),
+  orderSelectors.all('boolean', { under: order => order.customer.preferences }).use(true),
+] });
+const selectedOrder = selectedOrders.one({ seed: 42 });
+```
+
+`field(order => order.total).use('wrong')`, `field(order => order.customer.typo)`, and `all('boolean').use(123)` are compile errors. Scope paths passed to `under` are checked too. `all()` supports string, number, integer, bigint, boolean, date, bytes and decimal runtime kinds. It includes matching descendants inside collections. For unions, `field()` exposes fields common to all variants; configure variant-specific fields in a concrete subtype recipe.
+
+Selectors produce ordinary rules with the same precedence and strict matching. Use `all('boolean', { optional: true })` when a union variant might have no boolean fields. `use()` supplies a complete value, generator, operation or fixture; use `fields` for partial nested overrides. Callbacks select a whole collection or date; they do not select collection indexes or invoke methods. The string alternative `field('customer.name')` remains available and enumerates paths through five object levels. Keep raw rules for wildcards, indexes, metadata and predicates.
+
+Callbacks run once against a property-tracking proxy; they do not construct your model or invoke its getters. Return a single field access such as `order => order.customer.name`, or `order => order.customer?.name` for an optional parent. Computations, method calls, mutations and unrelated multi-field reads are rejected; use `computed` or generators for value calculations. Optional access does not force an optional parent to generate, so a descendant rule may still be unmatched when its parent is omitted.
+
+Paths are also checked against shape metadata immediately, including in JavaScript or after an unsafe cast. Methods are not selectable generation fields. An initialized property or getter absent from the runtime shape cannot be selected. Select constructor input shapes when a transformation changes field names or value types; selectors cannot infer an arbitrary transformation's internal mapping. A rename still needs the runtime shape to describe the renamed field. See the [property-selector playground](../playground/recipes/property-selectors.ts) for selectors whose nested model is an actual class.
+
+## Existing and unknown fields
+
+An existing declared field accepts an override and takes precedence over rules. Unknown `fields` keys fail TypeScript checking; untyped inputs fail during generation with `GenerationError` code `CONFIGURATION`. No extra property is silently added.
+
+A typed selector rejects an unknown path at selection time. A raw string rule pointing to a nonexistent path raises `UNUSED_RULE` after generation in strict mode. `optional: true` or `strict: false` permits unmatched raw rules; it still does not create the missing property. See the runnable [unknown-field demo](../playground/inheritance/scenarios.ts).
 
 ## Write a custom generator
 

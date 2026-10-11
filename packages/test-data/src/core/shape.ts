@@ -1,4 +1,5 @@
 import type { Constraints } from './constraints.js';
+import type { Issue } from './issue.js';
 export type { Constraints } from './constraints.js';
 export type Kind = 'string' | 'number' | 'integer' | 'bigint' | 'boolean' | 'date' | 'decimal' | 'bytes' | 'literal' | 'enum' | 'object' | 'array' | 'tuple' | 'set' | 'map' | 'record' | 'union' | 'lazy' | 'optional' | 'nullable' | 'reference' | 'custom' | 'transform';
 
@@ -14,10 +15,11 @@ export interface Shape<T = unknown> {
   readonly target?: string;
   readonly factory?: (values: Record<string, unknown>) => unknown;
   readonly setters?: Readonly<Record<string, (object: unknown, value: unknown) => void>>;
-  readonly validate?: (value: unknown) => readonly string[];
+  readonly validate?: (value: unknown) => readonly (string | Issue)[];
   readonly decode?: (value: unknown) => unknown;
   readonly transform?: (value: unknown) => unknown;
   readonly defaultValue?: unknown;
+  readonly defaultFactory?: () => unknown;
   readonly metadata?: Readonly<Record<string, unknown>>;
   readonly __type?: T;
 }

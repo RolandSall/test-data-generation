@@ -7,7 +7,7 @@ For worked examples, start with the [documentation index](README.md). This refer
 `shape` describes strings, numbers, safe integers, arbitrary-precision bigint, booleans, dates, bytes, literals, enums, objects, arrays, tuples, maps, sets, records, unions, optional/nullable fields, lazy recursive types, references and transformations. `decimalShape()` returns BigInt-backed fixed-scale `Decimal` values. `constrain()`, `annotate()` and `refine()` attach constraints, domain metadata and bounded custom validation. `shape.class()` constructs real class instances through an explicit factory and optional registered setters.
 
 
-An optional property, nullable value, omitted property and empty collection are distinct. Optional fields are populated by default; set `optionalProbability` to exercise absence. Nullable fields use `nullProbability` (default 0.2). Configuring an explicit `null` preserves that choice. Use `omit()` to omit a node and `blank()` to build an empty subtree. Blank roots have absent scalar properties, nested blank objects and empty collections.
+An optional property, nullable value, omitted property and empty collection are distinct. Optional fields are populated by default; set `optionalProbability` to exercise absence. Nullable fields use `nullProbability` (default 0.2). Configuring an explicit `null` preserves that choice. Use `omit()` to omit a node and `blank()` to build an empty subtree. Blank roots have absent scalar properties, nested blank objects and empty collections. Full generation remains the default. `onlyProvided: true` on a generation call returns a partial data object containing only merged `fields` selections; unselected properties are absent. See [selective generation](graphs.md#only-provided-properties).
 
 ## Recipes and dependent fields
 
@@ -57,7 +57,7 @@ Provider registries match shape kind or metadata and receive the same execution 
 
 ## Adapters
 
-- `fromZod()` uses the documented Zod core definitions and Zod's independent validator. It supports object/container schemas, primitives, recognized constraints, refinements, unions, lazy types, readonly objects, intersections and synchronous pipeline transformations. Unrepresentable custom schemas require providers; variadic tuples require an explicit collection recipe. Async transforms/refinements require application-owned async preparation rather than synchronous generation.
+- `fromZod()` uses the documented Zod core definitions and Zod's independent validator. It supports object/container schemas, primitives, recognized constraints, refinements, unions, lazy types, readonly objects, intersections and synchronous pipeline transformations. Output is the default; `{ mode: 'input' }` produces raw input. Overrides use the selected mode, and parsed output is not revalidated as raw input. Unrepresentable custom schemas require providers; variadic tuples require an explicit collection recipe. Async transforms/refinements require application-owned async preparation rather than synchronous generation.
 - `fromJsonSchema()` supports local references, supported scalar/object/container constraints, optional properties, constants, enums, unions and object intersections. External references and advanced logical keywords need explicit preprocessing/providers.
 - `describeType()` explicitly reads source files through the TypeScript compiler and returns runtime shapes. Call it during test setup or from build tooling; it requires source-file access and the optional compiler peer. It handles resolved generics, inheritance, unions, arrays, tuples, maps, sets, records and recursive types. It does not install a compiler transformer or generate source files automatically. Unbound generic parameters, any/unknown/never and methods require explicit metadata/factories. Class metadata does not bypass constructors; use `shape.class()` for runtime class instances.
 - `fromColumns()` consumes ORM-neutral column descriptors. Precision/scale use `Decimal`; relationships are ordinary shape/reference instructions. Database insertion, transactions and database uniqueness are outside generation.
@@ -66,6 +66,8 @@ Provider registries match shape kind or metadata and receive the same execution 
 ## Replay and runners
 
 `resolveSettings({ defaults, environment, overrides })` merges explicit layers. Passing `process.env` opts into `TEST_DATA_*` settings; it is never read implicitly by core generation. `/node` supplies `readSettingsFile()` for JSON configuration; `parseSettings()` also accepts a JSON string. Unknown settings fail. Kind defaults such as `defaults: { string: { minLength: 4, maxLength: 12 }, array: { minSize: 1, maxSize: 3 } }` apply across a graph; explicit descriptor constraints take precedence. Patterns in JSON use regex source strings and bigint bounds use decimal strings.
+
+See the [compatibility matrix and replay contract](compatibility.md) for tested peer versions, stable replay inputs, and exact uniqueness/session scopes.
 
 Standalone `one()` resets RNG/counters/cursors; `many()` and `stream()` advance one execution context. `fixtureRun()` advances state across several recipes. `result()` records seed and clock. Supply a fixed `now` for relative-date replay; external source contents, recipes and generator versions must remain unchanged. Streams are unbounded: use finite iteration or stop explicitly.
 

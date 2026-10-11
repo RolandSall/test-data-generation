@@ -4,12 +4,15 @@ import type { TypeContext, TypeReader } from './context.js';
 import { readScalar } from './scalars.js';
 import { readUnion } from './unions.js';
 import { readObject } from './objects.js';
+import { readBrandedPrimitive } from './brands.js';
 
 function convertType(type: ts.Type, context: TypeContext): Shape {
   // Literal/scalar classification precedes union handling: the compiler can
   // represent boolean as a union of true/false carrying the Boolean flag.
   const scalar = readScalar(type, context.checker);
   if (scalar) return scalar;
+  const branded = readBrandedPrimitive(type, context.checker);
+  if (branded) return branded;
   if (type.isUnion()) return readUnion(type, context.read);
   if (context.checker.isTupleType(type)) {
     return shape.tuple(context.checker.getTypeArguments(type as ts.TypeReference).map(context.read));

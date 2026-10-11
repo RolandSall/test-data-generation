@@ -14,7 +14,7 @@ export function generateScalar(node: Shape, context: GeneratorContext): unknown 
       if (constraints.format) {
         const format = formatGenerator(constraints.format);
         if (format) return format.generate(context);
-        throw new GenerationError('CONSTRAINT', 'Unknown format ' + constraints.format, context.path, random.seed);
+        throw new GenerationError('CONSTRAINT', 'Unknown format ' + constraints.format + '; supply a field generator or matching provider', context.path, random.seed);
       }
       if (constraints.pattern) return values.regex(constraints.pattern).generate(context);
       return values.text({

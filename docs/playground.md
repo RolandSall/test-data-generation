@@ -5,7 +5,11 @@ The repository includes runnable examples that import the library's public packa
 ```sh
 bun install --frozen-lockfile
 bun run playground
-bun run playground orders
+bun run playground quick-start
+bun run playground fields-only
+bun run playground rules-only
+bun run playground combined
+bun run playground automatic
 bun run playground:test
 ```
 
@@ -13,15 +17,30 @@ bun run playground:test
 
 | Demo | What it shows |
 | --- | --- |
+| `quick-start` | The small standalone Person example from the README |
+| `fields-only` | Direct property overrides, with untouched properties generated automatically |
+| `rules-only` | Equivalent customizations through typed property callbacks |
+| `combined` | A broad boolean rule with one explicit override |
+| `automatic` | Generation from a shape without fields or rules |
 | `orders` | Nested generation, custom fields, boolean rules and a computed total |
 | `cancelled` | A named scenario and dependent refund flag |
 | `batch` | Several generated orders in one execution |
 | `feeds` | CSV rows, converted columns, generated IDs and cycling |
 | `sessions` | A sequence advancing across calls in one session |
 | `zod` | Generation from an existing Zod schema |
+| `inheritance` | Inherited fields and methods, a real subclass and an implemented interface |
+| `polymorphism` | Registered concrete subclasses in a nested collection and overridden behavior |
+| `property-selectors` | Property callbacks targeting a real nested `Customer`, typed generators and a subtree scope |
+| `unknown-fields` | Existing-field overrides, unknown fields and typed selector errors |
 
 Change the [Order model](../playground/models/order.ts), [order recipe](../playground/recipes/orders.ts), [CSV input](../playground/data/contacts.csv), or [Zod schema](../playground/recipes/accounts.ts), then rerun. The [seed and clock](../playground/run-options.ts) are fixed so you can replay the output.
 
 The playground is available in the repository and excluded from the npm package. See its [README](../playground/README.md) for all demo commands.
 
 For application-style code with separate interfaces, classes and composed fixtures, explore the [example packages](examples.md).
+
+For runtime class behavior and a typed selection DSL, start with the [inheritance playground](../playground/inheritance/README.md), its [recipes](../playground/inheritance/fixtures.ts), and [tests](../playground/inheritance/inheritance.test.ts).
+
+The [property-selector recipe](../playground/recipes/property-selectors.ts) uses `order => order.customer.name`, with `customer` typed as the actual [Customer class](../playground/models/customer.ts). Run `bun run playground property-selectors` to print generated data and a constructor check.
+
+The [customization playground](../playground/customization/README.md) compares all four customization styles with runnable recipes and assertions. You can use either style alone, combine them, or omit both.

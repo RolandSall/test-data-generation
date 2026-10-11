@@ -18,7 +18,7 @@ async function markdownFiles(directory: string): Promise<string[]> {
 const documents = [
   'README.md',
   'CONTRIBUTING.md',
-  'playground/README.md',
+  ...await markdownFiles('playground'),
   ...await markdownFiles('examples'),
   ...await markdownFiles('docs'),
 ];
@@ -78,6 +78,9 @@ try {
         const runnerName = 'testing-' + runner + '-' + runners.length + '.test.ts';
         runners.push({ kind: runner, name: runnerName, body });
         await writeFile(join(temporary, runnerName), body);
+      } else if (/\bstandalone\b/.test(attributes)) {
+        if (!namedFile) throw new Error(name + ': a standalone snippet needs file=filename.ts');
+        guides.push(namedFile);
       } else code.push(body);
     }
     if (code.length) {

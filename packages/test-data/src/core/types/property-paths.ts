@@ -8,6 +8,7 @@ type PropertyValue<Model, Key extends string> =
 type VisitedLevels = readonly unknown[];
 
 type FieldPaths<Value, Key extends string, Limit extends number, Visited extends VisitedLevels> =
+  NonNullable<Value> extends (...args: never[]) => unknown ? never :
   NonNullable<Value> extends LeafValue ? Key :
   Key | `${Key}.${ObjectPaths<Value, Limit, [...Visited, unknown]>}`;
 

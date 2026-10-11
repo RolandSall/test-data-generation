@@ -1,7 +1,7 @@
 import { GenerationError } from './error.js';
 import type { RunOptions } from './recipe.js';
 import type { Constraints, Kind } from './shape.js';
-export type SettingsOptions = Omit<RunOptions, 'fields' | 'case' | 'trace'>;
+export type SettingsOptions = Omit<RunOptions, 'fields' | 'case' | 'trace' | 'onlyProvided'>;
 /** Explicit layers keep configuration deterministic and avoid mutable process-global settings. */
 export function resolveSettings({ defaults = {}, environment = {}, overrides = {} }: {
   defaults?: RunOptions; environment?: Readonly<Record<string, string | undefined>>; overrides?: RunOptions;
@@ -40,6 +40,8 @@ export function parseSettings(source: string): SettingsOptions {
       if (typeof value !== 'string' || !Number.isFinite(new Date(value).getTime())) throw new GenerationError('CONFIGURATION', 'Invalid now');
     } else if (key === 'strict') {
       if (typeof value !== 'boolean') throw new GenerationError('CONFIGURATION', 'Invalid strict');
+    } else if (key === 'schemaDefaults') {
+      if (!['generate', 'preserve'].includes(String(value))) throw new GenerationError('CONFIGURATION', 'Invalid schemaDefaults');
     } else if (key === 'check' || key === 'cycle') {
       if (!(key === 'check' ? ['none', 'schema'] : ['omit', 'null', 'reference', 'error']).includes(String(value))) throw new GenerationError('CONFIGURATION', `Invalid ${key}`);
     } else if (key === 'defaults') {

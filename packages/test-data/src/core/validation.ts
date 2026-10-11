@@ -2,6 +2,7 @@ import type { Issue } from './issue.js';
 export type { Issue } from './issue.js';
 import { Decimal, type Shape } from './shape.js';
 import { getPath } from './path.js';
+import { validationIssues } from './validation-issues.js';
 
 export function scalarIssues(node: Shape, value: unknown, now: Date): string[] {
   const c = node.constraints, issues: string[] = [];
@@ -70,7 +71,7 @@ export function validateShape(node: Shape, value: unknown, now = new Date('2020-
       }
     }
   }
-  issues.push(...(node.validate?.(value) ?? []).map(message => ({ path, message })));
+  issues.push(...validationIssues(node, value, path));
   return issues;
 }
 export function stableKey(value: unknown): string {

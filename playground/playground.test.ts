@@ -4,8 +4,20 @@ import { orders } from './recipes/orders.js';
 import { contactsFromCsv } from './recipes/contacts.js';
 import { AccountSchema, accounts } from './recipes/accounts.js';
 import { runOptions } from './run-options.js';
+import { propertyOrders } from './recipes/property-selectors.js';
+import { Customer } from './models/customer.js';
 
 describe('public package playground', () => {
+  test('property selectors generate an actual nested Customer with typed class references', () => {
+    const first = propertyOrders.one(runOptions);
+    expect(first).toEqual(propertyOrders.one(runOptions));
+    expect(first.customer).toBeInstanceOf(Customer);
+    expect(first.customer.name).toBe('Ada');
+    expect(first.customer.age).toBeGreaterThanOrEqual(18);
+    expect(first.customer.age).toBeLessThanOrEqual(65);
+    expect(first.customer.greet()).toBe('Hello, Ada');
+    expect(first.preferences).toEqual({ email: true, security: { rememberMe: true } });
+  });
   test('generates nested orders and replays seed and clock exactly', () => {
     const first = orders.one(runOptions);
     expect(first).toEqual(orders.one(runOptions));

@@ -1,3 +1,4 @@
+import { OMITTED } from './execution/omitted.js';
 import { GenerationError } from './error.js';
 import type { Fixture, ResolvedConfig, RunOptions } from './recipe.js';
 import { validateShape } from './validation.js';
@@ -30,6 +31,7 @@ export class Engine {
         input: config.fields, existing, provided: existing !== undefined,
         config: config as ResolvedConfig<unknown>,
       });
+      if (output === OMITTED) output = undefined;
       state.root = output;
       output = resolveReferences(output, output, this.seed);
       output = state.effects.complete(

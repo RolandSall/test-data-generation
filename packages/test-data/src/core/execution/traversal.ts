@@ -1,8 +1,11 @@
+import { OMITTED } from './omitted.js';
 import { GenerationError } from '../error.js';
 import { isFixture } from '../fixture-identity.js';
 import { clone, isPlain } from '../path.js';
-import { instruction, isInstruction, type GeneratorContext, type Rule } from '../instructions.js';
+import { instruction, isInstruction, value, type GeneratorContext, type Rule } from '../instructions.js';
 import { scalarIssues } from '../validation.js';
+import { relativeIssuePath, validationIssues } from '../validation-issues.js';
+import type { Issue } from '../issue.js';
 import { buildObject } from './objects.js';
 import { buildCollection } from './collections.js';
 import { GraphReference } from './references.js';
@@ -17,6 +20,10 @@ export class GraphTraversal implements NodeTraversal {
   visit(request: NodeRequest): unknown {
     const { session, registry } = this.state;
     const node = session.withDefaults(request.node);
+    // Wrappers and unions revisit the same root after resolving their inner shape.
+    if (this.state.mode === 'provided' && request.path === '$' && !['object', 'lazy', 'optional', 'nullable', 'union', 'transform'].includes(node.kind)) {
+      throw new GenerationError('CONFIGURATION', 'onlyProvided requires an object model', request.path, session.seed);
+    }
     const location = { ...request, node };
     const { path, depth, input, config, skipUse = false } = request;
     let { existing, provided = false } = request;
@@ -32,9 +39,16 @@ export class GraphTraversal implements NodeTraversal {
       return this.visit({ ...location, node: use.shape, input: nested.fields, existing, provided, config: nested, skipUse: true });
     }
 
+    const missing = !provided || existing === undefined || (existing === null && this.state.mode === 'nullish');
+    if (use === undefined && (!isPlain(input) || Object.keys(input).length === 0) && missing && this.state.mode !== 'blank' && this.state.mode !== 'rules' &&
+      session.options.schemaDefaults === 'preserve' && !registry.provider(location)) {
+      if (node.defaultFactory) use = value(node.defaultFactory());
+      else if (Object.hasOwn(node, 'defaultValue')) use = value(node.defaultValue);
+    }
+
     if (isInstruction(use)) {
       switch (use[instruction]) {
-        case 'omit': return undefined;
+        case 'omit': return OMITTED;
         case 'value': case 'shared': {
           const output = use[instruction] === 'shared' ? use.value : clone(use.value);
           this.state.queueCallbacks(location, output, true);
@@ -63,7 +77,7 @@ export class GraphTraversal implements NodeTraversal {
     if (node.kind === 'optional' || node.kind === 'nullable') {
       if (use === null || (use === undefined && provided && existing === null && this.state.mode !== 'nullish')) return null;
       const probability = node.kind === 'optional' ? session.options.optionalProbability : session.options.nullProbability;
-      if (use === undefined && !provided && !blank && session.random.boolean(probability)) {
+      if (use === undefined && !provided && !(fields && (depth > 0 || Object.keys(fields).length > 0)) && !blank && this.state.mode !== 'provided' && session.random.boolean(probability)) {
         return node.kind === 'optional' ? undefined : null;
       }
       return this.visit({ ...location, node: node.element!, input: use ?? fields, existing, provided, config, skipUse });
@@ -99,11 +113,19 @@ export class GraphTraversal implements NodeTraversal {
     const { path, config, blank } = request;
     const { session, effects } = this.state;
     const nullRule = [...rules].reverse().find(rule => rule.nullable !== undefined);
+    let rejected: readonly Issue[] = [];
     for (let count = 0; count < session.options.maxAttempts; count++) {
       const checkpoint = effects.checkpoint();
       const nullable = !explicit && !blank && nullRule !== undefined && session.random.boolean(nullRule.nullable!);
-      const output = nullable ? null : this.construct(attempt);
-      if (!this.accepts(attempt, output, nullable) || !effects.uniqueness.reserve(output, rules, config)) {
+      let output: unknown;
+      try { output = nullable ? null : this.construct(attempt); }
+      catch (error) {
+        if (!(error instanceof GenerationError) || error.code !== 'VALIDATION') throw error;
+        rejected = [{ path: error.path, message: error.message }];
+        effects.rollback(checkpoint); continue;
+      }
+      rejected = this.rejections(attempt, output, nullable);
+      if (rejected.length || !effects.uniqueness.reserve(output, rules, config)) {
         effects.rollback(checkpoint);
         continue;
       }
@@ -112,7 +134,9 @@ export class GraphTraversal implements NodeTraversal {
       }
       return output;
     }
-    throw new GenerationError('RETRY_EXHAUSTED', 'Generation rejected ' + session.options.maxAttempts + ' attempts', path, session.seed);
+    const reason = rejected.length ? ': ' + rejected.map(issue => issue.path + ': ' + issue.message).join('; ') +
+      '. Supply a field generator or matching provider for unsupported refinements; arbitrary validation functions are not solved automatically' : '';
+    throw new GenerationError('RETRY_EXHAUSTED', 'Generation rejected ' + session.options.maxAttempts + ' attempts' + reason, rejected[0]?.path ?? path, session.seed);
   }
 
   private construct(attempt: GenerationRequest): unknown {
@@ -128,7 +152,15 @@ export class GraphTraversal implements NodeTraversal {
       return this.visit({ ...request, node: this.state.session.random.pick(node.members!), input: fields, skipUse: false });
     }
     if (node.kind === 'transform' && !blank) {
-      return node.transform!(this.visit({ ...request, node: node.element!, input: fields }));
+      if (this.state.mode === 'provided') throw new GenerationError('CONFIGURATION', 'onlyProvided cannot infer partial transformation output; use a plain data shape or supply a complete generator/value', request.path, this.state.session.seed);
+      const input = this.visit({ ...request, node: node.element!, input: fields });
+      try { return node.transform!(input); }
+      catch (error) {
+        if (error instanceof GenerationError && error.code === 'VALIDATION') {
+          throw new GenerationError('VALIDATION', error.message, relativeIssuePath(request.path, error.path), this.state.session.seed, { cause: error });
+        }
+        throw new GenerationError('CONSTRUCTION', error instanceof Error ? error.message : String(error), request.path, this.state.session.seed, { cause: error });
+      }
     }
     const build = { ...request, existing: attempt.preserving ? request.existing : undefined };
     if (node.kind === 'object') return buildObject(this.state, this, build);
@@ -138,18 +170,20 @@ export class GraphTraversal implements NodeTraversal {
     return provider ? provider.generate.generate(context) : generateScalar(node, context);
   }
 
-  private accepts(attempt: GenerationRequest, output: unknown, nullable: boolean): boolean {
+  private rejections(attempt: GenerationRequest, output: unknown, nullable: boolean): readonly Issue[] {
     const { request, use, preserving, rules } = attempt;
     const { node, fields, config, blank } = request;
-    if (rules.some(rule => rule.filter && !rule.filter(output))) return false;
+    if (rules.some(rule => rule.filter && !rule.filter(output))) return [{ path: request.path, message: 'Rule filter rejected value' }];
     const hasOverrides = node.kind === 'object' && (
+      this.state.mode === 'provided' ||
       fields && Object.keys(fields).length > 0 || config?.source ||
       Object.keys(config?.computed ?? {}).length > 0 || this.state.registry.hasUsedOverrides()
     );
     if (use === undefined && !nullable && !blank && !preserving && !hasOverrides) {
-      if (scalarIssues(node, output, this.state.session.now).length || node.validate?.(output).length) return false;
+      const issues = [...scalarIssues(node, output, this.state.session.now).map(message => ({ path: request.path, message })), ...validationIssues(node, output, request.path)];
+      if (issues.length) return issues;
     }
-    return !config?.filter || config.filter(output);
+    return !config?.filter || config.filter(output) ? [] : [{ path: request.path, message: 'Recipe filter rejected value' }];
   }
 }
 

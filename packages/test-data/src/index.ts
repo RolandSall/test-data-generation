@@ -1,11 +1,14 @@
 export { shape, constrain, annotate, refine, Decimal, decimalShape } from './core/shape.js';
 export type { Shape, Infer, Constraints, Kind } from './core/shape.js';
 export { defineFixture, fixtureRun, Fixture } from './core/recipe.js';
-export type { RecipeConfig, RunOptions, FixtureOverrides, GenerationResult, DeepPartial, Provider, TraceEvent } from './core/recipe.js';
+export type { RecipeConfig, RunOptions, FixtureOverrides, GenerationResult, DeepPartial, Provider, TraceEvent, OnlyProvidedOptions, OnlyProvidedOverrides, FixtureSession } from './core/recipe.js';
 export { generator, value, shared, fresh, populate, omit, blank, reference } from './core/instructions.js';
 export type { Generator, GeneratorContext } from './core/instructions/generator.js';
 export type { Fields } from './core/types/field-overrides.js';
 export type { Paths, AtPath } from './core/types/property-paths.js';
+export { select } from './core/selection/select.js';
+export type { Selectors } from './core/selection/selectors.js';
+export type { Selection } from './core/selection/selection.js';
 export type { Rule, Match, Completion } from './core/types/matching.js';
 export type { Derived } from './core/types/derived-fields.js';
 export { Random } from './core/random.js';
