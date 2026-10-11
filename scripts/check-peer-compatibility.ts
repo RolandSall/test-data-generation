@@ -2,25 +2,30 @@ import { execFileSync } from 'node:child_process';
 import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { prepareZodRegressions } from './compatibility/zod-regressions.js';
 
 const root = resolve(import.meta.dirname, '..');
-const minimum = { zod: '4.6.0', typescript: '5.9.2', protobufjs: '8.8.0', vitest: '4.1.0', '@jest/globals': '30.1.0' } as const;
+const minimum = { zod: '4.3.0', typescript: '5.9.2', protobufjs: '8.8.0', vitest: '4.1.0', '@jest/globals': '30.1.0' } as const;
 type Peer = keyof typeof minimum;
-const manifest = JSON.parse(await readFile(join(root, 'package.json'), 'utf8')) as { devDependencies: Record<Peer, string> };
+const manifest = JSON.parse(await readFile(join(root, 'package.json'), 'utf8')) as { devDependencies: Record<Peer | 'ajv', string> };
 const peerArgument = process.argv[2];
 const targetArgument = process.argv[3];
-if (peerArgument && !Object.hasOwn(minimum, peerArgument) || targetArgument && !['minimum', 'current'].includes(targetArgument)) throw new Error('Usage: check-peer-compatibility.ts [peer] [minimum|current]');
+if (peerArgument && !Object.hasOwn(minimum, peerArgument) || targetArgument && !['minimum', 'current', '4.3'].includes(targetArgument) || targetArgument === '4.3' && peerArgument !== 'zod') throw new Error('Usage: check-peer-compatibility.ts [peer] [minimum|current] or zod 4.3');
 const peers = peerArgument ? [peerArgument as Peer] : Object.keys(minimum) as Peer[];
-const targets = targetArgument ? [targetArgument] : ['minimum', 'current'];
 const staging = await mkdtemp(join(tmpdir(), 'test-data-peer-'));
 const run = (cmd: string, args: string[], cwd: string) => execFileSync(cmd, args, { cwd, encoding: 'utf8', stdio: 'pipe' });
 try {
   const packed = JSON.parse(run('npm', ['pack', '--json', '--pack-destination', staging], join(root, 'packages/test-data'))) as { filename: string }[];
-  for (const peer of peers) for (const target of targets) {
-    const version = target === 'minimum' ? minimum[peer] : manifest.devDependencies[peer].replace(/^[~^]/, '');
+  for (const peer of peers) for (const target of targetArgument ? [targetArgument] : peer === 'zod' ? ['minimum', '4.3', 'current'] : ['minimum', 'current']) {
+    const version = target === 'minimum' ? minimum[peer] : target === '4.3' ? '4.3.6' : manifest.devDependencies[peer].replace(/^[~^]/, '');
     const directory = await mkdtemp(join(staging, 'consumer-'));
     const dependencies: Record<string, string> = { '@integration-testing/test-data-generation': `file:${join(staging, packed[0]!.filename)}`, typescript: '5.9.3', '@types/node': '22.18.0', [peer]: version };
     if (peer === '@jest/globals') dependencies.jest = version;
+    if (peer === 'zod') {
+      dependencies.vitest = manifest.devDependencies.vitest;
+      dependencies.protobufjs = manifest.devDependencies.protobufjs;
+      dependencies.ajv = manifest.devDependencies.ajv;
+    }
     await writeFile(join(directory, 'package.json'), JSON.stringify({ private: true, type: 'module', dependencies }));
     try {
       run('npm', ['exec', '--yes', '--package=npm@11.19.1', '--', 'npm', 'install', '--ignore-scripts', '--no-audit', '--no-fund'], directory);
@@ -31,7 +36,8 @@ try {
         export type Identifier = number & { readonly [brand]: 'Identifier' };
         export type Label = string & { readonly [brand]: 'Label' };
         export interface Model { id: Identifier; child: { label: Label } }`);
-      await writeFile(join(directory, 'tsconfig.json'), JSON.stringify({ compilerOptions: { target: 'ES2023', lib: ['ES2023', 'ESNext.Disposable'], module: 'NodeNext', moduleResolution: 'NodeNext', strict: true, types: ['node'], skipLibCheck: false, esModuleInterop: true, outDir: 'out' }, include: ['*.ts', '*.cts'] }));
+      if (peer === 'zod') await prepareZodRegressions(root, directory);
+      await writeFile(join(directory, 'tsconfig.json'), JSON.stringify({ compilerOptions: { target: 'ES2023', lib: ['ES2023', 'ESNext.Disposable'], module: 'NodeNext', moduleResolution: 'NodeNext', strict: true, types: ['node'], skipLibCheck: false, esModuleInterop: true, outDir: 'out' }, include: ['*.ts', '*.cts', 'regressions/**/*.ts'] }));
       run('node', ['node_modules/typescript/bin/tsc', '-p', 'tsconfig.json'], directory);
       if (peer === 'vitest') {
         await writeFile(join(directory, 'vitest.config.mjs'), "export default { test: { include: ['out/test-peer.js'] } };");
@@ -42,6 +48,7 @@ try {
         run('node', ['out/test-peer.js'], directory);
         run('node', ['out/test-peer.cjs'], directory);
       }
+      if (peer === 'zod') console.log(run('node', ['node_modules/vitest/vitest.mjs', 'run'], directory).trim());
       console.log(`Verified ${peer}@${version} (${target}): packed consumer types and runtime${peer === 'vitest' ? ' ESM' : peer === '@jest/globals' ? ' Jest CJS' : ' ESM/CJS'}`);
     } catch (error) {
       const failure = error as { stdout?: Buffer; stderr?: Buffer };

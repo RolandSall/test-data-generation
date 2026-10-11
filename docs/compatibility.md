@@ -4,13 +4,15 @@ The core needs Node.js 22.22+ and supports ESM/CommonJS without installing optio
 
 | Integration | Declared peer range | Minimum tested | Current pinned/tested | Runtime consumer checks |
 | --- | --- | --- | --- | --- |
-| Zod | `>=4.6 <5` | 4.6.0 | 4.6.5 | ESM and CommonJS |
+| Zod | `>=4.3 <5` | 4.3.0 | 4.6.5 | ESM and CommonJS; full adapter regressions |
 | TypeScript extraction | `>=5.9 <8` | 5.9.2 | 5.9.3 | ESM and CommonJS |
 | protobufjs | `>=8.8 <9` | 8.8.0 | 8.8.0 | ESM and CommonJS |
 | Vitest | `>=4.1 <5` | 4.1.0 | 4.1.11 | ESM runner |
 | Jest globals | `>=30.1 <31` | 30.1.0 | 30.5.2 | Matching Jest version, CommonJS runner |
 
 The CI matrix runs both version columns using installed package declarations and real adapter/runner calls on Node 22.22.0. Every entry checks TypeScript consumer compilation with dependency checking enabled. Consumers install Node 22 type declarations; runner consumers also include `ESNext.Disposable` in TypeScript's `lib`, as required by runner dependency declarations. The peer range permits versions between those limits; the table identifies the exact versions verified and does not imply that every permitted version or newer major has been tested. Other Node/platform versions are not part of this matrix.
+
+Zod has an additional CI cell for **4.3.6**. All three Zod versions (4.3.0, 4.3.6 and 4.6.5) run every library regression file using Zod against an isolated installed package, including constraints, collections, defaults/factories, optional properties, input/output transforms, pipelines and path diagnostics. Those files are also compiled against the selected Zod version. Installations use the declared peer range without bypassing dependency checks. Core generation still does not require Zod.
 
 ## Replaying a result
 

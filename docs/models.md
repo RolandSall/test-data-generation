@@ -138,6 +138,8 @@ The [inheritance playground](../playground/inheritance/README.md) demonstrates a
 
 ## Zod
 
+The optional adapter supports Zod **4.3+ within v4**. See the [compatibility matrix](compatibility.md) for exact versions covered by CI.
+
 ```sh
 npm install zod
 ```

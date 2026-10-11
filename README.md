@@ -224,7 +224,7 @@ The [inheritance playground](playground/inheritance/README.md) includes real `Do
 
 | Import suffix | Purpose | Peer |
 | --- | --- | --- |
-| `/zod` | Generate from Zod schemas | Zod 4.6+ within v4 |
+| `/zod` | Generate from Zod schemas | Zod 4.3+ within v4 |
 | `/typescript` | Explicit compiler metadata extraction | TypeScript 5.9+ within the declared peer range |
 | `/protobuf` | Generate protobufjs messages | protobufjs 8.8+ within v8 |
 | `/node` | Files, streams, settings, explicit file writes | Built-in Node APIs |
