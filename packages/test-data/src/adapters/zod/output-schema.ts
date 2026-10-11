@@ -10,8 +10,9 @@ export function createOutputSchemaReader() {
     const definition = (source as core.$ZodTypes)._zod.def;
     const replacement: Record<string, unknown> = {};
     switch (definition.type) {
-      case 'pipe': {
-        output = read(definition.out);
+      case 'pipe': case 'default': case 'prefault': {
+        // Defaults belong to generation/parsing, never to output validation.
+        output = read(definition.type === 'pipe' ? definition.out : definition.innerType);
         if (definition.checks?.length) output = copy(output, { checks: [...output._zod.def.checks ?? [], ...definition.checks] });
         cache.set(source, output); return output;
       }
@@ -28,7 +29,7 @@ export function createOutputSchemaReader() {
       case 'union': replacement.options = definition.options.map(read); break;
       case 'intersection': replacement.left = read(definition.left); replacement.right = read(definition.right); break;
       case 'lazy': replacement.getter = () => read(definition.getter()); break;
-      case 'optional': case 'nullable': case 'default': case 'prefault': case 'catch': case 'nonoptional': case 'readonly':
+      case 'optional': case 'nullable': case 'catch': case 'nonoptional': case 'readonly':
         replacement.innerType = read(definition.innerType); break;
     }
     // Overwrites are parsing operations; validation must not run them again.

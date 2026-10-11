@@ -26,6 +26,33 @@ test('default factories are deferred until preservation and prefaults are parsed
   const prefault = defineFixture(fromZod(z.string().trim().toUpperCase().prefault(' ada ')));
   expect(prefault.one({ ...options, schemaDefaults: 'preserve' })).toBe('ADA');
 });
+test.each(['default', 'prefault'] as const)('output validation never executes an omitted %s factory', kind => {
+  let calls = 0;
+  const count = z.number()[kind](() => ++calls).optional();
+  const fixture = defineFixture(fromZod(z.object({ count })));
+  expect(calls).toBe(0);
+  expect(fixture.one({ ...options, optionalProbability: 1 })).toEqual({});
+  expect(fixture.one({ ...options, optionalProbability: 1, check: 'schema' })).toEqual({});
+  expect(calls).toBe(0);
+});
+test.each(['default', 'prefault'] as const)('nested %s factories run only for preserved missing values', kind => {
+  let calls = 0;
+  const fixture = defineFixture(fromZod(z.object({ nested: z.object({ count: z.number()[kind](() => ++calls) }) })));
+  fixture.one({ ...options, check: 'schema' });
+  expect(calls).toBe(0);
+  expect(fixture.one({ ...options, schemaDefaults: 'preserve', check: 'schema' })).toEqual({ nested: { count: 1 } });
+  expect(calls).toBe(1);
+  expect(fixture.one({ ...options, schemaDefaults: 'preserve', check: 'schema', fields: { nested: { count: 0 } } })).toEqual({ nested: { count: 0 } });
+  expect(calls).toBe(1);
+});
+test.each(['default', 'prefault'] as const)('required %s output validation rejects missing values without applying a fallback', kind => {
+  let calls = 0;
+  const model = fromZod(z.number()[kind](() => ++calls));
+  expect(model.validate!(undefined)).not.toHaveLength(0);
+  expect(model.validate!('invalid')).not.toHaveLength(0);
+  expect(model.validate!(0)).toEqual([]);
+  expect(calls).toBe(0);
+});
 test('JSON Schema defaults support nested fields, false and null without replacing supplied values', () => {
   const fixture = defineFixture(fromJsonSchema<{ enabled: boolean; detail: { text: string }; nil: null }>({
     type: 'object', required: ['enabled', 'detail', 'nil'], properties: {

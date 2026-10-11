@@ -59,6 +59,12 @@ function consumer(peer: Peer): string {
     const input = defineFixture(fromZod(schema, { mode: 'input' })).one({ seed: 42, check: 'schema' });
     const n: number = output.n; const raw: '42' = input.n;
     if (n !== 42 || raw !== '42' || output.status !== 'pending' || schema.parse(input).n !== n) throw new Error('Zod mode/default mismatch');
+    for (const kind of ['default', 'prefault'] as const) {
+      let calls = 0;
+      const omitted = defineFixture(fromZod(z.object({ count: z.number()[kind](() => ++calls).optional() })));
+      const value = omitted.one({ seed: 42, optionalProbability: 1, check: 'schema' });
+      if (Object.hasOwn(value, 'count') || calls !== 0) throw new Error('Output validation applied a default factory');
+    }
     const refined = z.object({ n: z.number() }).refine(() => false, { path: ['n'], message: 'impossible' });
     try { defineFixture(fromZod(refined)).one({ seed: 42, maxAttempts: 2 }); throw new Error('Expected rejection'); }
     catch (error) { if (!String(error).includes('$.n')) throw error; }
