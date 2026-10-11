@@ -1,5 +1,6 @@
 import { expect, expectTypeOf, test } from 'vitest';
 import { defineFixture, fixtureRun, shape, select, omit, value, integer, type Infer, type DeepPartial, type RunOptions } from '../src/index.js';
+import { GenerationError } from '../src/core/error.js';
 const model = shape.object({ name: shape.string(), age: shape.integer(), address: shape.object({ city: shape.string(), zip: shape.string() }), other: shape.object({ label: shape.string() }), tags: shape.array(shape.string()), flag: shape.boolean(), nil: shape.nullable(shape.string()) });
 type Person = Infer<typeof model>;
 const people = defineFixture(model);
@@ -77,4 +78,51 @@ test('dynamic selection flags return a conservative partial-capable type', () =>
   expectTypeOf(result).toEqualTypeOf<Person | DeepPartial<Person>>();
   const sessionResult = fixtureRun(options).make(people, { onlyProvided: enabled, fields: { name: 'Ada' } });
   expect(sessionResult).toEqual({ name: 'Ada' });
+});
+
+test.each([
+  ['primitive', shape.integer()],
+  ['collection', shape.array(shape.integer())],
+  ['lazy primitive', shape.lazy(() => shape.integer())],
+  ['optional primitive', shape.optional(shape.integer())],
+  ['nullable primitive', shape.nullable(shape.integer())],
+  ['combined wrappers', shape.lazy(() => shape.optional(shape.nullable(shape.integer())))],
+  ['primitive union', shape.union([shape.integer(), shape.string()])],
+  ['mixed union', shape.union([shape.integer(), shape.object({ name: shape.string() })])],
+  ['wrapped mixed union', shape.lazy(() => shape.optional(shape.nullable(shape.union([shape.integer(), shape.object({ name: shape.string() })]))))],
+  ['nested union', shape.union([shape.union([shape.integer()]), shape.object({ name: shape.string() })])],
+] as const)('onlyProvided rejects a resolved unsupported root: %s', (_label, model) => {
+  const fixture = defineFixture(model);
+  expect(() => fixture.one({ ...options, onlyProvided: true })).toThrow(expect.objectContaining({
+    code: 'CONFIGURATION', path: '$', seed: 42,
+  }));
+  expect(() => fixture.one({ ...options, onlyProvided: true })).toThrow('onlyProvided requires an object model');
+});
+
+test('mixed union branches produce partial objects or fail explicitly, while full generation remains unchanged', () => {
+  const fixture = defineFixture(shape.union([shape.integer(), shape.object({ name: shape.string() })]));
+  expect(fixture.one(options)).toBe(4125);
+  let objects = 0, rejected = 0;
+  for (let seed = 0; seed < 20; seed++) {
+    let result: unknown;
+    try {
+      result = fixture.one({ ...options, seed, onlyProvided: true });
+    } catch (error) {
+      expect(error).toBeInstanceOf(GenerationError);
+      expect(error).toMatchObject({ code: 'CONFIGURATION', path: '$', seed });
+      rejected++;
+      continue;
+    }
+    expect(result).toEqual({});
+    objects++;
+  }
+  expect(objects).toBeGreaterThan(0); expect(rejected).toBeGreaterThan(0);
+});
+
+test('supported wrapped object roots and explicitly selected nested primitive unions still work', () => {
+  const fixture = defineFixture(shape.lazy(() => shape.optional(shape.nullable(shape.object({ name: shape.string(), age: shape.integer() })))));
+  expect(fixture.one({ ...options, onlyProvided: true, optionalProbability: 1, nullProbability: 1 })).toEqual({});
+  expect(fixture.one({ ...options, onlyProvided: true, fields: { name: 'Ada' } })).toEqual({ name: 'Ada' });
+  const nested = defineFixture(shape.object({ selected: shape.union([shape.integer(), shape.string()]), other: shape.boolean() }));
+  expect(nested.one({ ...options, onlyProvided: true, fields: { selected: 0 } })).toEqual({ selected: 0 });
 });

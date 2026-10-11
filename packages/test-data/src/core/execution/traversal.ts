@@ -20,6 +20,10 @@ export class GraphTraversal implements NodeTraversal {
   visit(request: NodeRequest): unknown {
     const { session, registry } = this.state;
     const node = session.withDefaults(request.node);
+    // Wrappers and unions revisit the same root after resolving their inner shape.
+    if (this.state.mode === 'provided' && request.path === '$' && !['object', 'lazy', 'optional', 'nullable', 'union', 'transform'].includes(node.kind)) {
+      throw new GenerationError('CONFIGURATION', 'onlyProvided requires an object model', request.path, session.seed);
+    }
     const location = { ...request, node };
     const { path, depth, input, config, skipUse = false } = request;
     let { existing, provided = false } = request;

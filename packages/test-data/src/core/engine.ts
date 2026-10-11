@@ -21,7 +21,6 @@ export class Engine {
   get random() { return this.session.random; }
 
   make<T>(fixture: Fixture<T>, options: RunOptions<T> = {}, index = 0, existing?: unknown, mode: GenerationMode = 'generate'): T {
-    if (mode === 'provided' && !['object', 'lazy', 'optional', 'nullable', 'union', 'transform'].includes(fixture.shape.kind)) throw new GenerationError('CONFIGURATION', 'onlyProvided requires an object model', '$', this.seed);
     const state = new GraphState(this.session, mode);
     const traversal = new GraphTraversal(state);
     const config = fixture.resolve(options);
